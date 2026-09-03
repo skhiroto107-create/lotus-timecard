@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e1116">
+<title>Lotus タイムカード</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#0e1116; --panel:#171b22; --panel2:#1f242d; --line:#2a3038;
+    --txt:#e8ecf1; --dim:#8b94a1;
+    --in:#22c55e; --out:#f97316; --accent:#6366f1; --err:#ef4444;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; height:100%; overscroll-behavior:none}
+  body{
+    background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    display:flex; flex-direction:column; overflow:hidden;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-user-select:none; user-select:none;
+  }
+  .hidden{display:none !important}
+
+  /* ---- 店舗選択画面 ---- */
+  #store-screen{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; padding:24px;
+  }
+  #store-screen h1{font-size:30px; margin:0 0 4px}
+  #store-screen p{color:var(--dim); margin:0 0 10px; font-size:15px; text-align:center; line-height:1.7}
+  .store-choice{
+    width:100%; max-width:400px; padding:26px; border-radius:20px; font:inherit;
+    font-size:26px; font-weight:700; color:#fff; border:0; cursor:pointer;
+    background:var(--accent);
+  }
+  .store-choice:active{opacity:.8}
+  .store-choice.alt{background:#be5a5a}
+
+  /* ---- ヘッダー ---- */
+  header{
+    padding:14px 18px; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap; flex:none;
+  }
+  .clock{font-size:44px; font-weight:700; letter-spacing:1px; font-variant-numeric:tabular-nums; line-height:1}
+  .today{color:var(--dim); font-size:14px; margin-top:5px}
+  .spacer{flex:1}
+  .store-badge{
+    display:flex; align-items:center; gap:10px;
+    background:var(--accent); color:#fff; font-weight:700; font-size:17px;
+    padding:11px 16px; border-radius:12px; border:0; font-family:inherit; cursor:pointer;
+  }
+  .store-badge.alt{background:#be5a5a}
+  .store-badge small{font-weight:600; opacity:.75; font-size:12px}
+  .tool{
+    background:var(--panel2); border:1px solid var(--line); color:var(--txt);
+    font:inherit; font-weight:600; font-size:15px; padding:11px 18px;
+    border-radius:12px; cursor:pointer;
+  }
+  .tool:active{opacity:.75}
+  .tool.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+
+  /* ---- スタッフ一覧 ---- */
+  main{flex:1; overflow:auto; padding:18px; -webkit-overflow-scrolling:touch}
+  .grid{display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:16px; cursor:pointer; text-align:left; color:inherit; font:inherit;
+    display:flex; flex-direction:column; gap:8px; min-height:112px;
+    transition:transform .08s, border-color .15s;
+  }
+  .card:active,.card.tapped{transform:scale(.97)}
+  .card .nm{font-size:23px; font-weight:700}
+  .card .st{font-size:13px; color:var(--dim); display:flex; align-items:center; gap:7px}
+  .dot{width:9px; height:9px; border-radius:50%; background:#3d4552; flex:none}
+  .card.working{border-color:var(--in); background:linear-gradient(180deg,rgba(34,197,94,.14),var(--panel))}
+  .card.working .dot{background:var(--in); box-shadow:0 0 0 4px rgba(34,197,94,.18)}
+  .card.working .st{color:var(--in)}
+  .card.done{opacity:.5}
+
+  /* ---- モーダル ---- */
+  .mask{
+    position:fixed; inset:0; background:rgba(0,0,0,.68);
+    display:none; align-items:center; justify-content:center; padding:20px; z-index:20;
+  }
+  .mask.show{display:flex}
+  .sheet{
+    background:var(--panel); border:1px solid var(--line); border-radius:22px;
+    padding:26px; width:100%; max-width:400px; text-align:center;
+    max-height:88vh; overflow:auto;
+  }
+  .sheet h2{margin:0 0 8px; font-size:30px}
+  .sheet .sub{color:var(--dim); font-size:15px; margin-bottom:22px; line-height:1.65; white-space:pre-line}
+  .big{
+    width:100%; border:0; border-radius:16px; padding:20px; font:inherit;
+    font-size:22px; font-weight:700; color:#fff; cursor:pointer; margin-bottom:10px;
+  }
+  .big:active{opacity:.8}
+  .big.in{background:var(--in)}
+  .big.out{background:var(--out)}
+  .big.ghost{background:var(--panel2); color:var(--dim); font-size:17px; padding:15px}
+  .big[disabled]{opacity:.4}
+
+  .sum{width:100%; border-collapse:collapse; margin-bottom:20px; font-size:15px}
+  .sum td{padding:9px 0; border-bottom:1px solid var(--line); text-align:left; color:var(--dim)}
+  .sum td:last-child{text-align:right; color:var(--txt); font-weight:700; font-variant-numeric:tabular-nums}
+
+  .field{text-align:left; margin-bottom:16px}
+  .field label{display:block; font-size:13px; color:var(--dim); margin-bottom:7px}
+  .field select,.field input{
+    width:100%; padding:14px; border-radius:12px; border:1px solid var(--line);
+    background:var(--bg); color:var(--txt); font:inherit; font-size:17px;
+  }
+  .warn{
+    background:rgba(249,115,22,.13); border:1px solid rgba(249,115,22,.4); color:#fdba74;
+    padding:11px 14px; border-radius:11px; font-size:14px; margin-bottom:16px;
+    text-align:left; line-height:1.6;
+  }
+  .banner{
+    background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.4); color:#fca5a5;
+    padding:12px 16px; border-radius:12px; margin-bottom:16px; font-size:14px; line-height:1.6;
+  }
+  .loading{color:var(--dim); text-align:center; padding:40px; font-size:15px}
+
+  #toast{
+    position:fixed; left:50%; bottom:30px; transform:translate(-50%,150%); opacity:0; pointer-events:none;
+    background:var(--in); color:#fff; padding:16px 28px; border-radius:14px;
+    font-size:18px; font-weight:700; transition:transform .28s, opacity .28s; z-index:40;
+    max-width:90vw; text-align:center;
+  }
+  #toast.show{transform:translate(-50%,0); opacity:1}
+  #toast.bad{background:var(--err)}
+</style>
+</head>
+<body>
+
+<!-- 店舗選択（初回のみ。以降はこの端末に記憶される） -->
+<div id="store-screen">
+  <h1>Lotus タイムカード</h1>
+  <p>この端末の店舗を選んでください。<br>あとから右上のボタンで変更できます。</p>
+  <button class="store-choice" data-store="藤井寺店">藤井寺店</button>
+  <button class="store-choice alt" data-store="恵我之荘店">恵我之荘店</button>
+</div>
+
+<!-- 打刻画面 -->
+<div id="main-screen" class="hidden" style="display:flex; flex-direction:column; flex:1; min-height:0">
+  <header>
+    <div>
+      <div class="clock" id="clock">--:--</div>
+      <div class="today" id="today">読み込み中…</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="store-badge" id="storeBadge"><span id="storeName">－</span><small>変更</small></button>
+    <button class="tool" id="cashBtn">レジ金</button>
+    <button class="tool primary" id="closeBtn">日締め</button>
+  </header>
+
+  <main>
+    <div id="banner"></div>
+    <div class="grid" id="grid"></div>
+  </main>
+</div>
+
+<div class="mask" id="mask"><div class="sheet" id="sheet"></div></div>
+<div id="toast"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
+
