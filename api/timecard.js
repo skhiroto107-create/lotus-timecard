@@ -336,7 +336,7 @@ async function actSetStartCash(store, amount) {
   if (!Number.isFinite(n)) throw new Error('金額が正しくありません');
 
   await updatePage(target.id, { [P.startCash]: { number: n } });
-  return { message: "レジ金 ¥" + n.toLocaleString('ja-JP') + " を記録（" + target.staff + " の行）" };
+  return { message: "スタートレジ金 ¥" + n.toLocaleString('ja-JP') + " を記録（" + target.staff + " の行）" };
 }
 
 // 押し忘れ対策。Vercel Cron から GET で叩かれる。
