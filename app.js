@@ -255,7 +255,7 @@
       '</table>' +
       (info.staff.length
         ? '<div class="field"><label>売上をまとめるスタッフ</label><select id="rep">' + opts + '</select></div>' +
-          '<div class="field"><label>スタート/レジ金</label>' +
+          '<div class="field"><label>スタートレジ金</label>' +
           '<input id="cash" type="number" inputmode="numeric" placeholder="未入力" value="' +
           (info.startCash != null ? info.startCash : '') + '"></div>' +
           '<button class="big in" id="act">Notionに反映</button>'
@@ -293,10 +293,10 @@
   /* ---------- レジ金 ---------- */
   function openCash() {
     sheet.innerHTML =
-      '<h2>レジ金</h2>' +
+      '<h2>スタートレジ金</h2>' +
       '<div class="sub">' + store + '　営業日 ' + currentDay + '</div>' +
-      '<div class="field"><label>スタート/レジ金</label>' +
-      '<input id="cash" type="number" inputmode="numeric" placeholder="例 30000"></div>' +
+      '<div class="field"><label>スタートレジ金</label>' +
+      '<input id="cash" type="number" inputmode="numeric" placeholder="例 25000"></div>' +
       '<button class="big in" id="act">保存</button>' +
       '<button class="big ghost" id="close">キャンセル</button>';
 
