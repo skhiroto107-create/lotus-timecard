@@ -4,6 +4,7 @@
 
   const storeScreen = document.getElementById('store-screen');
   const mainScreen  = document.getElementById('main-screen');
+  const wallEl      = document.getElementById('wallday');
   const clockEl     = document.getElementById('clock');
   const todayEl     = document.getElementById('today');
   const storeBadge  = document.getElementById('storeBadge');
@@ -79,10 +80,27 @@
   }, true);
 
   /* ---------- 時計 ---------- */
+  const WEEKDAY = ['日', '月', '火', '水', '木', '金', '土'];
+
+  // 'YYYY-MM-DD' から曜日を求める。ローカル時刻で組み立てるのでタイムゾーンでずれない。
+  function weekdayOf(dateStr) {
+    const p = String(dateStr || '').split('-').map(Number);
+    if (p.length !== 3 || p.some((n) => !Number.isFinite(n))) return '';
+    return WEEKDAY[new Date(p[0], p[1] - 1, p[2]).getDay()];
+  }
+
+  // 画面に出す営業日の表記（例: 2026-09-04(金)）
+  function dayLabel(dateStr) {
+    const w = weekdayOf(dateStr);
+    return dateStr + (w ? '(' + w + ')' : '');
+  }
+
   function tick() {
     const d = new Date();
     const p = (n) => String(n).padStart(2, '0');
-    clockEl.textContent = p(d.getHours()) + ':' + p(d.getMinutes());
+    wallEl.textContent =
+      d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + '(' + WEEKDAY[d.getDay()] + ')';
+    clockEl.textContent = p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
   }
   setInterval(tick, 1000);
   tick();
@@ -168,7 +186,7 @@
     sheet.querySelector('h2').textContent = name;
     // 店舗の取り違えを防ぐため、どの操作でも必ず店舗名を確認画面に出す
     sheet.querySelector('.sub').textContent =
-      store + '　営業日 ' + currentDay + '\n' + (
+      store + '　営業日 ' + dayLabel(currentDay) + '\n' + (
         done      ? '退勤済みです（' + r.in + ' 〜 ' + r.out + '）　修正はNotionから'
         : working ? r.in + ' に出勤中です。退勤を記録します'
         : '出勤を記録します');
@@ -206,7 +224,7 @@
       records = {};
       (res.records || []).forEach((r) => { records[r.staff] = r; });
       currentDay = res.businessDate;
-      todayEl.textContent = '営業日 ' + currentDay;
+      todayEl.textContent = '営業日 ' + dayLabel(currentDay);
     } catch (err) {
       todayEl.textContent = '接続エラー';
       bannerEl.innerHTML = '<div class="banner">⚠ ' + err.message + '</div>';
@@ -242,7 +260,7 @@
 
     sheet.innerHTML =
       '<h2>日締め</h2>' +
-      '<div class="sub">' + store + '　営業日 ' + info.businessDate + '</div>' +
+      '<div class="sub">' + store + '　営業日 ' + dayLabel(info.businessDate) + '</div>' +
       (info.closedBy ? '<div class="warn">すでに ' + info.closedBy + ' さんの行に反映済みです。実行すると上書きします。</div>' : '') +
       (info.staff.length ? '' : '<div class="warn">この営業日の出勤記録がありません。先に出勤打刻をしてください。</div>') +
       '<table class="sum">' +
@@ -294,7 +312,7 @@
   function openCash() {
     sheet.innerHTML =
       '<h2>スタートレジ金</h2>' +
-      '<div class="sub">' + store + '　営業日 ' + currentDay + '</div>' +
+      '<div class="sub">' + store + '　営業日 ' + dayLabel(currentDay) + '</div>' +
       '<div class="field"><label>スタートレジ金</label>' +
       '<input id="cash" type="number" inputmode="numeric" placeholder="例 25000"></div>' +
       '<button class="big in" id="act">保存</button>' +
