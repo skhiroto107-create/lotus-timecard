@@ -44,6 +44,7 @@
     padding:14px 18px; border-bottom:1px solid var(--line);
     display:flex; align-items:center; gap:12px; flex-wrap:wrap; flex:none;
   }
+  .wallday{color:var(--dim); font-size:14px; margin-bottom:4px; font-variant-numeric:tabular-nums}
   .clock{font-size:44px; font-weight:700; letter-spacing:1px; font-variant-numeric:tabular-nums; line-height:1}
   .today{color:var(--dim); font-size:14px; margin-top:5px}
   .spacer{flex:1}
@@ -148,7 +149,8 @@
 <div id="main-screen" class="hidden" style="display:flex; flex-direction:column; flex:1; min-height:0">
   <header>
     <div>
-      <div class="clock" id="clock">--:--</div>
+      <div class="wallday" id="wallday">----/--/--</div>
+      <div class="clock" id="clock">--:--:--</div>
       <div class="today" id="today">読み込み中…</div>
     </div>
     <div class="spacer"></div>
