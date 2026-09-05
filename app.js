@@ -9,6 +9,7 @@
   const todayEl     = document.getElementById('today');
   const storeBadge  = document.getElementById('storeBadge');
   const storeName   = document.getElementById('storeName');
+  const manualBtn   = document.getElementById('manualBtn');
   const cashBtn     = document.getElementById('cashBtn');
   const closeBtn    = document.getElementById('closeBtn');
   const bannerEl    = document.getElementById('banner');
@@ -339,6 +340,49 @@
     mask.classList.add('show');
   }
 
+  /* ---------- マニュアル ---------- */
+  // 一覧はNotionの「マニュアル」から毎回取得するので、
+  // 追加・削除・並べ替えはNotion側だけで完結する。
+  let manualCache = null;
+
+  async function openManuals() {
+    sheet.innerHTML = '<h2>マニュアル</h2><div class="sub">読み込んでいます…</div>';
+    mask.classList.add('show');
+
+    if (!manualCache) {
+      try {
+        const res = await call('manuals');
+        manualCache = res.manuals || [];
+      } catch (err) {
+        sheetError('マニュアル', err.message);
+        return;
+      }
+    }
+
+    if (!manualCache.length) {
+      sheetError('マニュアル', 'マニュアルが登録されていません');
+      return;
+    }
+
+    sheet.innerHTML =
+      '<h2>マニュアル</h2>' +
+      '<div class="sub">タップするとNotionで開きます</div>' +
+      '<div class="mlist" id="mlist"></div>' +
+      '<button class="big ghost" id="close">閉じる</button>';
+
+    const list = sheet.querySelector('#mlist');
+    manualCache.forEach((m) => {
+      const b = document.createElement('button');
+      b.className = 'mitem';
+      b.textContent = m.title;
+      b.addEventListener('click', () => window.open(m.url, '_blank'));
+      list.appendChild(b);
+    });
+
+    sheet.querySelector('#close').addEventListener('click', closeSheet);
+  }
+
+  manualBtn.addEventListener('click', openManuals);
   closeBtn.addEventListener('click', openClose);
   cashBtn.addEventListener('click', openCash);
 
