@@ -8,6 +8,10 @@ const TZ = 'Asia/Tokyo';
 const DATA_SOURCE_ID = '391f21c0-bd91-8099-93ac-000bd1ace536';
 // 「デジタル注文履歴」
 const ORDERS_DATA_SOURCE_ID = '1a51ee95-e778-4ed2-9bdc-adb0db5aa59e';
+// 「Lotus シフト管理・計上入力」内のマニュアル一覧
+const MANUALS_DATA_SOURCE_ID = '39af21c0-bd91-80ce-8c58-000be913ca50';
+// 打刻アプリのマニュアルボタンに出さないもの（Notion側には残す）
+const MANUALS_HIDDEN = ['Notion入力マニュアル'];
 
 // 営業日の切り替え時刻（JST）〡29 のように書かず、21 なら営業日 9/4 は「9/4 21:00 〜 9/5 20:59」。
 // 打刻の営業日判定と、日締めで集計する伝票の時間帯の両方がこの値で決まる。
@@ -353,6 +357,18 @@ async function actSetStartCash(store, amount) {
   return { message: "スタートレジ金 ¥" + n.toLocaleString('ja-JP') + " を記録（" + target.staff + " の行）" };
 }
 
+// Notionのマニュアル一覧を返す。追加・削除はNotion側だけで完結する。
+async function actManuals() {
+  const body = await notion("/data_sources/" + MANUALS_DATA_SOURCE_ID + "/query", 'POST', { page_size: 100 });
+  const manuals = (body.results || []).map((p) => {
+    const props = p.properties || {};
+    const titleProp = Object.keys(props).map((k) => props[k]).find((v) => v && v.type === 'title');
+    const title = titleProp && titleProp.title ? titleProp.title.map((t) => t.plain_text).join('') : '';
+    return { title: title, url: p.url };
+  }).filter((m) => m.title && MANUALS_HIDDEN.indexOf(m.title) < 0);
+  return { manuals: manuals };
+}
+
 // 押し忘れ対策。Vercel Cron から GET で叩かれる。
 async function actAutoClose() {
   const day = prevBusinessDate();
@@ -390,7 +406,7 @@ export default async function handler(req, res) {
   const { action, store, staff, repStaff, startCash, force, amount } = req.body || {};
 
   try {
-    if (action !== 'status' && !STORES.includes(store)) {
+    if (action !== 'status' && action !== 'manuals' && !STORES.includes(store)) {
       throw new Error('店舗が正しくありません');
     }
 
@@ -402,6 +418,7 @@ export default async function handler(req, res) {
       case 'closeInfo':    data = await actCloseInfo(store); break;
       case 'close':        data = await closeDay(store, businessDate(), repStaff, startCash, force); break;
       case 'setStartCash': data = await actSetStartCash(store, amount); break;
+      case 'manuals':      data = await actManuals(); break;
       default: throw new Error('不明な操作: ' + action);
     }
     return res.status(200).json({ ok: true, ...data });
