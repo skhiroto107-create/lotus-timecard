@@ -364,9 +364,95 @@ async function actManuals() {
     const props = p.properties || {};
     const titleProp = Object.keys(props).map((k) => props[k]).find((v) => v && v.type === 'title');
     const title = titleProp && titleProp.title ? titleProp.title.map((t) => t.plain_text).join('') : '';
-    return { title: title, url: p.url };
+    return { id: p.id, title: title, url: p.url };
   }).filter((m) => m.title && MANUALS_HIDDEN.indexOf(m.title) < 0);
+  // Notionの並びと逆順（下から上）で返す
+  manuals.reverse();
   return { manuals: manuals };
+}
+
+/* ---------------- マニュアル本文の読み込み ---------------- */
+
+// 子ブロックまで含めて取得する。入れ子は3階層まで。
+async function fetchBlocks(blockId, depth) {
+  if (depth > 3) return [];
+  const out = [];
+  let cursor = null;
+
+  do {
+    const qs = '?page_size=100' + (cursor ? '&start_cursor=' + cursor : '');
+    const body = await notion('/blocks/' + blockId + '/children' + qs, 'GET', null);
+    for (const b of (body.results || [])) {
+      if (b.has_children) b.__children = await fetchBlocks(b.id, depth + 1);
+      out.push(b);
+    }
+    cursor = body.has_more ? body.next_cursor : null;
+  } while (cursor);
+
+  return out;
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function richText(arr) {
+  return (arr || []).map((t) => {
+    let s = esc(t.plain_text);
+    const a = t.annotations || {};
+    if (a.code) s = '<code>' + s + '</code>';
+    if (a.bold) s = '<b>' + s + '</b>';
+    if (a.italic) s = '<i>' + s + '</i>';
+    if (a.strikethrough) s = '<s>' + s + '</s>';
+    return s;
+  }).join('');
+}
+
+function blocksToHtml(blocks) {
+  let html = '';
+  let listTag = null;
+  const closeList = () => { if (listTag) { html += '</' + listTag + '>'; listTag = null; } };
+
+  for (const b of blocks) {
+    const type = b.type;
+    const d = b[type] || {};
+    const kids = (b.__children && b.__children.length) ? blocksToHtml(b.__children) : '';
+
+    if (type === 'bulleted_list_item' || type === 'numbered_list_item') {
+      const tag = type === 'bulleted_list_item' ? 'ul' : 'ol';
+      if (listTag !== tag) { closeList(); html += '<' + tag + '>'; listTag = tag; }
+      html += '<li>' + richText(d.rich_text) + kids + '</li>';
+      continue;
+    }
+    closeList();
+
+    if (type === 'heading_1')      html += '<h3>' + richText(d.rich_text) + '</h3>';
+    else if (type === 'heading_2') html += '<h4>' + richText(d.rich_text) + '</h4>';
+    else if (type === 'heading_3') html += '<h5>' + richText(d.rich_text) + '</h5>';
+    else if (type === 'divider')   html += '<hr>';
+    else if (type === 'to_do')     html += '<p>' + (d.checked ? '☑ ' : '☐ ') + richText(d.rich_text) + '</p>';
+    else if (type === 'quote' || type === 'callout') html += '<blockquote>' + richText(d.rich_text) + kids + '</blockquote>';
+    else if (type === 'toggle')    html += '<p><b>' + richText(d.rich_text) + '</b></p>' + kids;
+    else if (type === 'code')      html += '<pre>' + esc((d.rich_text || []).map((x) => x.plain_text).join('')) + '</pre>';
+    else if (type === 'image') {
+      const u = d.file ? d.file.url : (d.external ? d.external.url : '');
+      if (u) html += '<img src="' + esc(u) + '" alt="">';
+    } else {
+      const s = richText(d.rich_text);
+      if (s) html += '<p>' + s + '</p>';
+      if (kids) html += kids;
+    }
+  }
+
+  closeList();
+  return html;
+}
+
+async function actManual(pageId) {
+  if (!pageId) throw new Error('マニュアルが指定されていません');
+  const html = blocksToHtml(await fetchBlocks(pageId, 0));
+  return { html: html || '<p>本文がありません</p>' };
 }
 
 // 押し忘れ対策。Vercel Cron から GET で叩かれる。
@@ -403,10 +489,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'POST してください' });
   }
 
-  const { action, store, staff, repStaff, startCash, force, amount } = req.body || {};
+  const { action, store, staff, repStaff, startCash, force, amount, pageId } = req.body || {};
 
   try {
-    if (action !== 'status' && action !== 'manuals' && !STORES.includes(store)) {
+    if (action !== 'status' && action !== 'manuals' && action !== 'manual' && !STORES.includes(store)) {
       throw new Error('店舗が正しくありません');
     }
 
@@ -419,6 +505,7 @@ export default async function handler(req, res) {
       case 'close':        data = await closeDay(store, businessDate(), repStaff, startCash, force); break;
       case 'setStartCash': data = await actSetStartCash(store, amount); break;
       case 'manuals':      data = await actManuals(); break;
+      case 'manual':       data = await actManual(pageId); break;
       default: throw new Error('不明な操作: ' + action);
     }
     return res.status(200).json({ ok: true, ...data });
