@@ -340,13 +340,13 @@
     mask.classList.add('show');
   }
 
-  /* ---------- マニュアル ---------- */
+  /* ---------- マニュアル・ルール ---------- */
   // 一覧はNotionの「マニュアル」から毎回取得するので、
   // 追加・削除・並べ替えはNotion側だけで完結する。
   let manualCache = null;
 
   async function openManuals() {
-    sheet.innerHTML = '<h2>マニュアル</h2><div class="sub">読み込んでいます…</div>';
+    sheet.innerHTML = '<h2>マニュアル・ルール</h2><div class="sub">読み込んでいます…</div>';
     mask.classList.add('show');
 
     if (!manualCache) {
@@ -354,18 +354,18 @@
         const res = await call('manuals');
         manualCache = res.manuals || [];
       } catch (err) {
-        sheetError('マニュアル', err.message);
+        sheetError('マニュアル・ルール', err.message);
         return;
       }
     }
 
     if (!manualCache.length) {
-      sheetError('マニュアル', 'マニュアルが登録されていません');
+      sheetError('マニュアル・ルール', 'マニュアル・ルールが登録されていません');
       return;
     }
 
     sheet.innerHTML =
-      '<h2>マニュアル</h2>' +
+      '<h2>マニュアル・ルール</h2>' +
       '<div class="sub">タップすると内容を表示します</div>' +
       '<div class="mlist" id="mlist"></div>' +
       '<button class="big ghost" id="close">閉じる</button>';
@@ -395,7 +395,7 @@
         const res = await call('manual', { pageId: m.id });
         manualBody[m.id] = res.html;
       } catch (err) {
-        sheetError('マニュアル', err.message);
+        sheetError('マニュアル・ルール', err.message);
         sheet.classList.remove('wide');
         return;
       }
