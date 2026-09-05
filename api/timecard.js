@@ -9,8 +9,10 @@ const DATA_SOURCE_ID = '391f21c0-bd91-8099-93ac-000bd1ace536';
 // 「デジタル注文履歴」
 const ORDERS_DATA_SOURCE_ID = '1a51ee95-e778-4ed2-9bdc-adb0db5aa59e';
 
-// 営業日の切り替え時刻。6 なら朝6時までの打刻は前日の営業日になる。
-const BUSINESS_DAY_OFFSET_HOURS = 6;
+// 営業日の切り替え時刻（JST）〡29 のように書かず、21 なら営業日 9/4 は「9/4 21:00 〜 9/5 20:59」。
+// 打刻の営業日判定と、日締めで集計する伝票の時間帯の両方がこの値で決まる。
+// ※ この時刻より前の打刻は前日の営業日として扱われます。
+const BUSINESS_DAY_OFFSET_HOURS = 21;
 
 const STAFF = ['れん', 'ひろと', 'よしき', 'まさ', 'あやか', 'いちご', 'はると', 'きらと', 'こうだい'];
 const STORES = ['藤井寺店', '恵我之荘店'];
@@ -62,6 +64,16 @@ function businessDateFor(ms) {
 }
 function businessDate()     { return businessDateFor(Date.now()); }
 function prevBusinessDate() { return businessDateFor(Date.now() - 24 * 3600 * 1000); }
+
+// 営業日 D の実時間の範囲。デジタル伝票は「カレンダー上の日付」で記録されるため、
+// 日付列ではなく伝票が作られた時刻で切らないと、日付をまたいだ深夜の売上を取りこぼす。
+function businessWindow(day) {
+  const h = String(BUSINESS_DAY_OFFSET_HOURS).padStart(2, '0');
+  const next = new Date(day + 'T00:00:00+09:00');
+  next.setDate(next.getDate() + 1);
+  const nextDay = jstStamp(next.getTime()).slice(0, 10);
+  return { start: day + 'T' + h + ':00:00+09:00', end: nextDay + 'T' + h + ':00:00+09:00' };
+}
 
 // 日本には夏時間がないため +09:00 固定で問題ない
 function nowIso() {
@@ -156,12 +168,14 @@ function toRecord(page) {
 async function queryOrders(store, day) {
   const results = [];
   let cursor = null;
+  const win = businessWindow(day);
 
   do {
     const payload = {
       filter: {
         and: [
-          { property: O.date,   date:   { equals: day } },
+          { timestamp: 'created_time', created_time: { on_or_after: win.start } },
+          { timestamp: 'created_time', created_time: { before: win.end } },
           { property: O.store,  select: { equals: store } },
           { property: O.status, select: { equals: '会計済み' } },
         ],
