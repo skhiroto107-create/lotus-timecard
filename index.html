@@ -62,6 +62,15 @@
   }
   .tool:active{opacity:.75}
   .tool.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+  .tool.manual{margin-left:18px; align-self:center}
+
+  .mlist{display:flex; flex-direction:column; gap:9px; margin-bottom:14px}
+  .mitem{
+    background:var(--panel2); border:1px solid var(--line); border-radius:13px;
+    padding:15px 16px; font:inherit; font-size:16px; color:var(--txt);
+    text-align:left; cursor:pointer; line-height:1.5;
+  }
+  .mitem:active{opacity:.75}
 
   /* ---- スタッフ一覧 ---- */
   main{flex:1; overflow:auto; padding:18px; -webkit-overflow-scrolling:touch}
@@ -153,6 +162,7 @@
       <div class="clock" id="clock">--:--:--</div>
       <div class="today" id="today">読み込み中…</div>
     </div>
+    <button class="tool manual" id="manualBtn">📖 マニュアル</button>
     <div class="spacer"></div>
     <button class="store-badge" id="storeBadge"><span id="storeName">－</span><small>変更</small></button>
     <button class="tool" id="cashBtn">スタートレジ金</button>
