@@ -366,7 +366,7 @@
 
     sheet.innerHTML =
       '<h2>マニュアル</h2>' +
-      '<div class="sub">タップするとNotionで開きます</div>' +
+      '<div class="sub">タップすると内容を表示します</div>' +
       '<div class="mlist" id="mlist"></div>' +
       '<button class="big ghost" id="close">閉じる</button>';
 
@@ -375,11 +375,50 @@
       const b = document.createElement('button');
       b.className = 'mitem';
       b.textContent = m.title;
-      b.addEventListener('click', () => window.open(m.url, '_blank'));
+      b.addEventListener('click', () => openManual(m));
       list.appendChild(b);
     });
 
     sheet.querySelector('#close').addEventListener('click', closeSheet);
+  }
+
+  // 本文はNotionへ飛ばずアプリ内に表示する。一度読んだものは覚えておく。
+  const manualBody = {};
+
+  async function openManual(m) {
+    sheet.classList.add('wide');
+    sheet.innerHTML = '<h2 class="mtitle"></h2><div class="sub">読み込んでいます…</div>';
+    sheet.querySelector('.mtitle').textContent = m.title;
+
+    if (!manualBody[m.id]) {
+      try {
+        const res = await call('manual', { pageId: m.id });
+        manualBody[m.id] = res.html;
+      } catch (err) {
+        sheetError('マニュアル', err.message);
+        sheet.classList.remove('wide');
+        return;
+      }
+    }
+
+    sheet.innerHTML =
+      '<h2 class="mtitle"></h2>' +
+      '<div class="mbody"></div>' +
+      '<button class="big ghost" id="back">← 一覧に戻る</button>' +
+      '<button class="big ghost" id="close">閉じる</button>';
+
+    sheet.querySelector('.mtitle').textContent = m.title;
+    sheet.querySelector('.mbody').innerHTML = manualBody[m.id];
+    sheet.scrollTop = 0;
+
+    sheet.querySelector('#back').addEventListener('click', () => {
+      sheet.classList.remove('wide');
+      openManuals();
+    });
+    sheet.querySelector('#close').addEventListener('click', () => {
+      sheet.classList.remove('wide');
+      closeSheet();
+    });
   }
 
   manualBtn.addEventListener('click', openManuals);
