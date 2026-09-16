@@ -277,9 +277,32 @@
           '<div class="field"><label>スタートレジ金</label>' +
           '<input id="cash" type="number" inputmode="numeric" placeholder="未入力" value="' +
           (info.startCash != null ? info.startCash : '') + '"></div>' +
+          '<div class="field"><label>稼働時間（1時間単位）</label><div class="hlist" id="hlist"></div></div>' +
           '<button class="big in" id="act">Notionに反映</button>'
         : '') +
       '<button class="big ghost" id="close">' + (info.staff.length ? 'キャンセル' : '閉じる') + '</button>';
+
+    // スタッフごとの稼働時間入力。空欄のままなら既存の値をそのまま残す。
+    const hlist = sheet.querySelector('#hlist');
+    if (hlist) {
+      info.staff.forEach((x) => {
+        const row = document.createElement('div');
+        row.className = 'hrow';
+        const nm = document.createElement('span');
+        nm.textContent = x.staff;
+        const inp = document.createElement('input');
+        inp.type = 'number';
+        inp.inputMode = 'numeric';
+        inp.step = '1';
+        inp.min = '0';
+        inp.dataset.staff = x.staff;
+        inp.placeholder = '時間';
+        if (x.hours != null) inp.value = x.hours;
+        row.appendChild(nm);
+        row.appendChild(inp);
+        hlist.appendChild(row);
+      });
+    }
 
     sheet.querySelector('#close').addEventListener('click', closeSheet);
     const act = sheet.querySelector('#act');
@@ -295,10 +318,16 @@
     act.disabled = true;
     act.textContent = '送信中…';
     try {
+      const hours = {};
+      sheet.querySelectorAll('#hlist input').forEach((i) => {
+        if (i.value !== '') hours[i.dataset.staff] = Number(i.value);
+      });
+
       const res = await call('close', {
         repStaff: rep,
         startCash: cashRaw === '' ? null : Number(cashRaw),
         force,
+        hours,
       });
       closeSheet();
       toast(res.message);
