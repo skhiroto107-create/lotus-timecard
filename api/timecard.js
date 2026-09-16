@@ -247,7 +247,7 @@ function clearedSalesProps() {
   return props;
 }
 
-async function closeDay(store, day, repStaff, startCash, force) {
+async function closeDay(store, day, repStaff, startCash, force, hours) {
   const info = await collectDay(store, day);
 
   if (!info.records.length) throw new Error(day + " の出勤記録がありません");
@@ -280,8 +280,23 @@ async function closeDay(store, day, repStaff, startCash, force) {
 
   await updatePage(target.id, props);
 
+  // 手入力された稼働時間を各スタッフの行に書き込む（1時間単位）
+  let hoursWritten = 0;
+  if (hours && typeof hours === 'object') {
+    for (const r of info.records) {
+      const v = hours[r.staff];
+      if (v === undefined || v === null || v === '') continue;
+      const n = Math.round(Number(v));
+      if (!Number.isFinite(n) || n < 0) continue;
+      await updatePage(r.id, { [P.hours]: { number: n } });
+      hoursWritten += 1;
+    }
+  }
+
   return {
-    message: day + " 日締め完了（" + target.staff + " の行に反映）",
+    message: day + " 日締め完了（" + target.staff + " の行に反映"
+      + (hoursWritten ? "／稼働時間 " + hoursWritten + "名分" : "") + "）",
+    hoursWritten: hoursWritten,
     businessDate: day,
     staff: target.staff,
     summary: s,
@@ -489,7 +504,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'POST してください' });
   }
 
-  const { action, store, staff, repStaff, startCash, force, amount, pageId } = req.body || {};
+  const { action, store, staff, repStaff, startCash, force, amount, pageId, hours } = req.body || {};
 
   try {
     if (action !== 'status' && action !== 'manuals' && action !== 'manual' && !STORES.includes(store)) {
@@ -502,7 +517,7 @@ export default async function handler(req, res) {
       case 'in':           data = await actPunchIn(staff, store); break;
       case 'out':          data = await actPunchOut(staff, store); break;
       case 'closeInfo':    data = await actCloseInfo(store); break;
-      case 'close':        data = await closeDay(store, businessDate(), repStaff, startCash, force); break;
+      case 'close':        data = await closeDay(store, businessDate(), repStaff, startCash, force, hours); break;
       case 'setStartCash': data = await actSetStartCash(store, amount); break;
       case 'manuals':      data = await actManuals(); break;
       case 'manual':       data = await actManual(pageId); break;
