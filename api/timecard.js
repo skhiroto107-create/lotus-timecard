@@ -317,6 +317,14 @@ const T = {
   store: '店舗',
 };
 
+// 担当者プロパティを名前の配列にする（multi_select / 旧select のどちらでも読める）
+function readPeople(prop) {
+  if (!prop) return [];
+  if (Array.isArray(prop.multi_select)) return prop.multi_select.map(function (o) { return o.name; });
+  if (prop.select && prop.select.name) return [prop.select.name];
+  return [];
+}
+
 // 指定月（YYYY-MM）のタスクを取得する。店舗未設定のタスクは両店に出す。
 async function actTasks(store, month) {
   const m = /^\d{4}-\d{2}$/.test(String(month || '')) ? month : businessDate().slice(0, 7);
@@ -349,7 +357,7 @@ async function actTasks(store, month) {
     return {
       id: p.id,
       title: titleProp && titleProp.title ? titleProp.title.map(function (t) { return t.plain_text; }).join('') : '',
-      staff: pr[T.staff] && pr[T.staff].select ? pr[T.staff].select.name : null,
+      staff: readPeople(pr[T.staff]),
       status: pr[T.status] && pr[T.status].status ? pr[T.status].status.name : '未着手',
       due: pr[T.due] && pr[T.due].date ? String(pr[T.due].date.start).slice(0, 10) : null,
       store: pr[T.store] && pr[T.store].select ? pr[T.store].select.name : null,
@@ -368,12 +376,18 @@ async function actTaskAdd(store, title, staff, due) {
   if (!name) throw new Error('タスク名を入力してください');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(due || ''))) throw new Error('期日が正しくありません');
 
+  // 担当者は複数選択。配列でも文字列1件でも受け取れるようにする
+  const people = (Array.isArray(staff) ? staff : (staff ? [staff] : []))
+    .map(function (n) { return String(n || '').trim(); })
+    .filter(function (n) { return STAFF.indexOf(n) >= 0; });
+  const uniq = people.filter(function (n, i) { return people.indexOf(n) === i; });
+
   const props = {};
   props[T.title]  = { title: [{ text: { content: name } }] };
   props[T.due]    = { date: { start: due } };
   props[T.status] = { status: { name: '未着手' } };
   props[T.store]  = { select: { name: store } };
-  if (staff) props[T.staff] = { select: { name: staff } };
+  props[T.staff]  = { multi_select: uniq.map(function (n) { return { name: n }; }) };
 
   await notion('/pages', 'POST', {
     parent: { type: 'data_source_id', data_source_id: TASKS_DATA_SOURCE_ID },
