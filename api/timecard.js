@@ -16,6 +16,9 @@ const TASKS_DATA_SOURCE_ID = '39af21c0-bd91-80af-9d8b-000b438c9c4e';
 // 打刻アプリのマニュアルボタンに出さないもの（Notion側には残す）
 const MANUALS_HIDDEN = ['Notion入力マニュアル'];
 
+// マニュアル一覧でいちばん下に固定するもの（ここに書いた順で最後に並びます）
+const MANUALS_LAST = ['レンタルスペース利用前の準備について'];
+
 // 営業日の切り替え時刻（JST）〡29 のように書かず、21 なら営業日 9/4 は「9/4 21:00 〜 9/5 20:59」。
 // 打刻の営業日判定と、日締めで集計する伝票の時間帯の両方がこの値で決まる。
 // ※ この時刻より前の打刻は前日の営業日として扱われます。
@@ -494,7 +497,12 @@ async function actManuals() {
   }).filter((m) => m.title && MANUALS_HIDDEN.indexOf(m.title) < 0);
   // Notionの並びと逆順（下から上）で返す
   manuals.reverse();
-  return { manuals: manuals };
+  // MANUALS_LAST に書いたものはいちばん下へ回す
+  const head = manuals.filter(function (m) { return MANUALS_LAST.indexOf(m.title) < 0; });
+  const tail = MANUALS_LAST
+    .map(function (t) { return manuals.find(function (m) { return m.title === t; }); })
+    .filter(Boolean);
+  return { manuals: head.concat(tail) };
 }
 
 /* ---------------- マニュアル本文の読み込み ---------------- */
