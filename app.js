@@ -573,7 +573,6 @@
       { id: 'sign',     text: '店舗看板を出す／CLOSEDをOPENに変える' },
       { id: 'light',    text: '店舗ライトを点灯しオープン状態にする' },
       { id: 'power',    text: '各種電源を入れる' },
-      { id: 'toilet',   text: 'トイレ確認（便器・床・手洗い場）' },
       { id: 'trash',    text: 'トイレ内ゴミ箱・フロア床の汚れ確認' },
       { id: 'cash',     text: 'レジ金スタートの金額確認／入力' },
       { id: 'water',    text: 'マドラーなどの水換え' },
