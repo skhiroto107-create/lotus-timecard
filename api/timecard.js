@@ -10,6 +10,9 @@ const DATA_SOURCE_ID = '391f21c0-bd91-8099-93ac-000bd1ace536';
 const ORDERS_DATA_SOURCE_ID = '1a51ee95-e778-4ed2-9bdc-adb0db5aa59e';
 // 「Lotus シフト管理・計上入力」内のマニュアル一覧
 const MANUALS_DATA_SOURCE_ID = '39af21c0-bd91-80ce-8c58-000be913ca50';
+// 「タスク」データソース（ToDoカレンダー）
+const TASKS_DATA_SOURCE_ID = '39af21c0-bd91-80af-9d8b-000b438c9c4e';
+
 // 打刻アプリのマニュアルボタンに出さないもの（Notion側には残す）
 const MANUALS_HIDDEN = ['Notion入力マニュアル'];
 
@@ -303,6 +306,93 @@ async function closeDay(store, day, repStaff, startCash, force, hours) {
   };
 }
 
+/* ---------------- ToDoカレンダー ---------------- */
+
+// タスクDBの列名
+const T = {
+  title: 'Name',
+  staff: '選択',
+  status: 'ステータス',
+  due: '期日',
+  store: '店舗',
+};
+
+// 指定月（YYYY-MM）のタスクを取得する。店舗未設定のタスクは両店に出す。
+async function actTasks(store, month) {
+  const m = /^\d{4}-\d{2}$/.test(String(month || '')) ? month : businessDate().slice(0, 7);
+  const first = m + '-01';
+  const next = new Date(first + 'T00:00:00+09:00');
+  next.setMonth(next.getMonth() + 1);
+  const nextFirst = jstStamp(next.getTime()).slice(0, 10);
+
+  const results = [];
+  let cursor = null;
+  do {
+    const payload = {
+      filter: {
+        and: [
+          { property: T.due, date: { on_or_after: first } },
+          { property: T.due, date: { before: nextFirst } },
+        ],
+      },
+      page_size: 100,
+    };
+    if (cursor) payload.start_cursor = cursor;
+    const body = await notion("/data_sources/" + TASKS_DATA_SOURCE_ID + "/query", 'POST', payload);
+    (body.results || []).forEach(function (r) { results.push(r); });
+    cursor = body.has_more ? body.next_cursor : null;
+  } while (cursor);
+
+  const tasks = results.map(function (p) {
+    const pr = p.properties || {};
+    const titleProp = pr[T.title];
+    return {
+      id: p.id,
+      title: titleProp && titleProp.title ? titleProp.title.map(function (t) { return t.plain_text; }).join('') : '',
+      staff: pr[T.staff] && pr[T.staff].select ? pr[T.staff].select.name : null,
+      status: pr[T.status] && pr[T.status].status ? pr[T.status].status.name : '未着手',
+      due: pr[T.due] && pr[T.due].date ? String(pr[T.due].date.start).slice(0, 10) : null,
+      store: pr[T.store] && pr[T.store].select ? pr[T.store].select.name : null,
+    };
+  }).filter(function (t) {
+    if (!t.due) return false;
+    return !t.store || t.store === store;   // 店舗未設定は共通タスクとして両店に出す
+  });
+
+  tasks.sort(function (a, b) { return a.due < b.due ? -1 : a.due > b.due ? 1 : 0; });
+  return { month: m, tasks: tasks };
+}
+
+async function actTaskAdd(store, title, staff, due) {
+  const name = String(title || '').trim();
+  if (!name) throw new Error('タスク名を入力してください');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(due || ''))) throw new Error('期日が正しくありません');
+
+  const props = {};
+  props[T.title]  = { title: [{ text: { content: name } }] };
+  props[T.due]    = { date: { start: due } };
+  props[T.status] = { status: { name: '未着手' } };
+  props[T.store]  = { select: { name: store } };
+  if (staff) props[T.staff] = { select: { name: staff } };
+
+  await notion('/pages', 'POST', {
+    parent: { type: 'data_source_id', data_source_id: TASKS_DATA_SOURCE_ID },
+    properties: props,
+  });
+
+  return { message: '「' + name + '」を追加しました' };
+}
+
+async function actTaskStatus(pageId, status) {
+  if (!pageId) throw new Error('タスクが指定されていません');
+  const allowed = ['未着手', '進行中', '完了'];
+  if (allowed.indexOf(status) < 0) throw new Error('ステータスが正しくありません');
+  const props = {};
+  props[T.status] = { status: { name: status } };
+  await updatePage(pageId, props);
+  return { message: status + ' にしました', status: status };
+}
+
 /* ---------------- 各アクション ---------------- */
 
 async function actStatus(store) {
@@ -504,7 +594,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'POST してください' });
   }
 
-  const { action, store, staff, repStaff, startCash, force, amount, pageId, hours } = req.body || {};
+  const { action, store, staff, repStaff, startCash, force, amount, pageId, hours, month, title, due, status } = req.body || {};
 
   try {
     if (action !== 'status' && action !== 'manuals' && action !== 'manual' && !STORES.includes(store)) {
@@ -521,6 +611,9 @@ export default async function handler(req, res) {
       case 'setStartCash': data = await actSetStartCash(store, amount); break;
       case 'manuals':      data = await actManuals(); break;
       case 'manual':       data = await actManual(pageId); break;
+      case 'tasks':        data = await actTasks(store, month); break;
+      case 'taskAdd':      data = await actTaskAdd(store, title, staff, due); break;
+      case 'taskStatus':   data = await actTaskStatus(pageId, status); break;
       default: throw new Error('不明な操作: ' + action);
     }
     return res.status(200).json({ ok: true, ...data });
