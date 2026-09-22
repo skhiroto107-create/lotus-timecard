@@ -113,15 +113,19 @@
   .cdot.done{background:var(--in)}
   .clist{display:flex; flex-direction:column; gap:8px; margin-bottom:16px}
   .cempty{color:var(--dim); font-size:14px; text-align:left; padding:6px 2px}
-  .cadd{display:flex; gap:8px; margin-top:6px}
+  .cadd{display:flex; flex-direction:column; gap:9px; margin-top:6px}
+  .caddrow{display:flex; gap:8px}
   .cadd input{
     flex:1; min-width:0; padding:12px; border-radius:11px; border:1px solid var(--line);
     background:var(--bg); color:var(--txt); font:inherit; font-size:16px;
   }
-  .cadd select{
-    width:120px; padding:12px 8px; border-radius:11px; border:1px solid var(--line);
-    background:var(--bg); color:var(--txt); font:inherit; font-size:15px;
+  .cchiplabel{color:var(--dim); font-size:13px; padding:0 2px}
+  .cchips{display:flex; flex-wrap:wrap; gap:7px}
+  .cchip{
+    padding:9px 14px; border-radius:999px; border:1px solid var(--line);
+    background:var(--bg); color:var(--dim); font:inherit; font-size:15px; cursor:pointer;
   }
+  .cchip.on{background:var(--in); border-color:var(--in); color:#fff; font-weight:700}
 
   .mlist{display:flex; flex-direction:column; gap:9px; margin-bottom:14px}
   .mitem{
