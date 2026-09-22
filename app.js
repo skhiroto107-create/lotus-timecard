@@ -580,7 +580,6 @@
       { id: 'snsOpen',  text: 'Instagramにオープン告知（担当者名も記載）', store: '恵我之荘店' },
     ]},
     { title: '\u2461 勤務時', items: [
-      { id: 'duty',     text: '', duty: true },
       { id: 'sns',      text: 'Instagram更新（1回以上）' },
       { id: 'lo',       text: '開店20分前にラストオーダー（開店時間は臨機応変に）' },
     ]},
@@ -596,36 +595,13 @@
     ]},
   ];
 
-  // 曜日当番（0=日）。火曜は当番なし。
-  const DUTY = {
-    0: 'フロア全体の掃除機がけ',
-    1: 'トイレ掃除（便器・床・手洗い場）',
-    3: 'トイレ掃除（便器・床・手洗い場）',
-    4: 'フロア全体の掃除機がけ',
-    5: 'トイレ掃除（便器・床・手洗い場）',
-    6: '仕入れ確認（必須・報告まで行う）',
-  };
-
-  function dutyOf(dateStr) {
-    const p = String(dateStr || '').split('-').map(Number);
-    if (p.length !== 3 || p.some((n) => !Number.isFinite(n))) return null;
-    return DUTY[new Date(p[0], p[1] - 1, p[2]).getDay()] || null;
-  }
-
+  // その日その店で実際に出す項目だけに絞る
   function todoItems() {
-    const duty = dutyOf(currentDay);
     const out = [];
     TODO_SECTIONS.forEach((sec) => {
-      const items = [];
-      sec.items.forEach((it) => {
-        if (it.store && it.store !== store) return;
-        if (it.duty) {
-          if (!duty) return;
-          items.push({ id: it.id, text: '曜日当番：' + duty });
-          return;
-        }
-        items.push({ id: it.id, text: it.text });
-      });
+      const items = sec.items
+        .filter((it) => !it.store || it.store === store)
+        .map((it) => ({ id: it.id, text: it.text }));
       if (items.length) out.push({ title: sec.title, items: items });
     });
     return out;
