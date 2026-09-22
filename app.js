@@ -642,7 +642,6 @@
       '<h2>日次業務</h2>' +
       '<div class="sub">' + store + '　営業日 ' + dayLabel(currentDay) + '</div>' +
       '<div class="tlist" id="tlist"></div>' +
-      '<button class="big ghost" id="reset">チェックを全部外す</button>' +
       '<button class="big ghost" id="close">閉じる</button>';
 
     const list = sheet.querySelector('#tlist');
@@ -668,11 +667,6 @@
       });
     });
 
-    sheet.querySelector('#reset').addEventListener('click', () => {
-      saveTodoState({});
-      updateTodoBadge();
-      openTodo();
-    });
     sheet.querySelector('#close').addEventListener('click', () => {
       sheet.classList.remove('wide');
       closeSheet();
