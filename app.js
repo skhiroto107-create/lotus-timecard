@@ -578,6 +578,7 @@
       { id: 'cash',     text: 'レジ金スタートの金額確認／入力' },
       { id: 'water',    text: 'マドラーなどの水換え' },
       { id: 'snsOpen',  text: 'Instagramにオープン告知（担当者名も記載）', store: '恵我之荘店' },
+      { id: 'todoChk',  text: 'ToDoの確認' },
     ]},
     { title: '\u2461 勤務時', items: [
       { id: 'sns',      text: 'Instagram更新（1回以上）' },
