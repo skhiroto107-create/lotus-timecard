@@ -571,7 +571,6 @@
   const TODO_SECTIONS = [
     { title: '\u2460 出勤時', items: [
       { id: 'sign',     text: '店舗看板を出す／CLOSEDをOPENに変える' },
-      { id: 'light',    text: '店舗ライトを点灯しオープン状態にする' },
       { id: 'power',    text: '各種電源を入れる' },
       { id: 'cash',     text: 'レジ金スタートの金額確認／入力' },
       { id: 'water',    text: 'マドラーなどの水換え' },
