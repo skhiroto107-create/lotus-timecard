@@ -10,6 +10,8 @@
   const storeBadge  = document.getElementById('storeBadge');
   const storeName   = document.getElementById('storeName');
   const manualBtn   = document.getElementById('manualBtn');
+  const todoBtn     = document.getElementById('todoBtn');
+  const calBtn      = document.getElementById('calBtn');
   const cashBtn     = document.getElementById('cashBtn');
   const closeBtn    = document.getElementById('closeBtn');
   const bannerEl    = document.getElementById('banner');
@@ -232,6 +234,7 @@
       records = {};
     }
     renderGrid();
+    updateTodoBadge();
   }
 
   /* ---------- 日締め ---------- */
@@ -369,6 +372,297 @@
     mask.classList.add('show');
   }
 
+  /* ---------- ToDoカレンダー ----------
+     データはNotionの「タスク」データソース。店舗未設定のタスクは両店に出る。 */
+  let calMonth = null;
+  let calTasks = [];
+  let calSelected = null;
+
+  function monthLabel(m) {
+    const p = m.split('-');
+    return Number(p[0]) + '年' + Number(p[1]) + '月';
+  }
+
+  function shiftMonth(m, delta) {
+    const p = m.split('-').map(Number);
+    const d = new Date(p[0], p[1] - 1 + delta, 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  async function openCalendar(month) {
+    calMonth = month || (currentDay ? currentDay.slice(0, 7) : null);
+    if (!calMonth) {
+      const n = new Date();
+      calMonth = n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0');
+    }
+    calSelected = null;
+
+    sheet.classList.add('wide');
+    sheet.innerHTML = '<h2>ToDoカレンダー</h2><div class="sub">読み込んでいます…</div>';
+    mask.classList.add('show');
+
+    try {
+      const res = await call('tasks', { month: calMonth });
+      calTasks = res.tasks || [];
+    } catch (err) {
+      sheetError('ToDoカレンダー', err.message);
+      sheet.classList.remove('wide');
+      return;
+    }
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    const p = calMonth.split('-').map(Number);
+    const firstDay = new Date(p[0], p[1] - 1, 1);
+    const daysInMonth = new Date(p[0], p[1], 0).getDate();
+    const startPad = firstDay.getDay();
+    const today = currentDay || '';
+
+    const byDay = {};
+    calTasks.forEach((t) => {
+      if (!byDay[t.due]) byDay[t.due] = [];
+      byDay[t.due].push(t);
+    });
+
+    let cells = '';
+    for (let i = 0; i < startPad; i++) cells += '<div class="cday pad"></div>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds = calMonth + '-' + String(d).padStart(2, '0');
+      const list = byDay[ds] || [];
+      const open = list.filter((t) => t.status !== '完了').length;
+      const cls = 'cday' + (ds === today ? ' today' : '') + (ds === calSelected ? ' sel' : '');
+      cells += '<button class="' + cls + '" data-day="' + ds + '">' +
+        '<span class="cnum">' + d + '</span>' +
+        (list.length ? '<span class="cdot' + (open ? '' : ' done') + '">' + (open || list.length) + '</span>' : '') +
+        '</button>';
+    }
+
+    sheet.innerHTML =
+      '<h2>ToDoカレンダー</h2>' +
+      '<div class="sub">' + store + '</div>' +
+      '<div class="cnav">' +
+        '<button class="cbtn" id="prev">‹</button>' +
+        '<span class="cmonth">' + monthLabel(calMonth) + '</span>' +
+        '<button class="cbtn" id="next">›</button>' +
+      '</div>' +
+      '<div class="cweek"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>' +
+      '<div class="cgrid">' + cells + '</div>' +
+      '<div class="clist" id="clist"></div>' +
+      '<button class="big ghost" id="close">閉じる</button>';
+
+    sheet.querySelector('#prev').addEventListener('click', () => openCalendar(shiftMonth(calMonth, -1)));
+    sheet.querySelector('#next').addEventListener('click', () => openCalendar(shiftMonth(calMonth, 1)));
+    sheet.querySelector('#close').addEventListener('click', () => {
+      sheet.classList.remove('wide');
+      closeSheet();
+    });
+    sheet.querySelectorAll('.cday[data-day]').forEach((b) => {
+      b.addEventListener('click', () => { calSelected = b.dataset.day; renderCalendar(); });
+    });
+
+    renderDayList(byDay[calSelected] || null);
+  }
+
+  function renderDayList(list) {
+    const box = sheet.querySelector('#clist');
+    if (!box || !calSelected) return;
+
+    box.innerHTML = '<div class="tsec">' + dayLabel(calSelected) + '</div>';
+
+    (list || []).forEach((t) => {
+      const row = document.createElement('button');
+      row.className = 'titem' + (t.status === '完了' ? ' on' : '');
+      row.innerHTML = '<span class="tbox"></span><span class="ttext"></span>';
+      row.querySelector('.ttext').textContent =
+        t.title + (t.staff ? '　/　' + t.staff : '') + (t.store ? '' : '　（共通）');
+      row.addEventListener('click', async () => {
+        if (busy) return;
+        busy = true;
+        const next = t.status === '完了' ? '未着手' : '完了';
+        try {
+          await call('taskStatus', { pageId: t.id, status: next });
+          t.status = next;
+          row.classList.toggle('on', next === '完了');
+          renderCalendar();
+        } catch (err) {
+          toast(err.message, true);
+        } finally { busy = false; }
+      });
+      box.appendChild(row);
+    });
+
+    if (!list || !list.length) {
+      const empty = document.createElement('div');
+      empty.className = 'cempty';
+      empty.textContent = 'この日のタスクはありません';
+      box.appendChild(empty);
+    }
+
+    const add = document.createElement('div');
+    add.className = 'cadd';
+    add.innerHTML =
+      '<input id="ctitle" type="text" placeholder="タスクを追加">' +
+      '<select id="cstaff"><option value="">担当なし</option>' +
+      STAFF.map((n) => '<option value="' + n + '">' + n + '</option>').join('') +
+      '</select>' +
+      '<button class="cbtn add" id="cadd">追加</button>';
+    box.appendChild(add);
+
+    add.querySelector('#cadd').addEventListener('click', async () => {
+      if (busy) return;
+      const title = add.querySelector('#ctitle').value.trim();
+      if (!title) { toast('タスク名を入力してください', true); return; }
+      busy = true;
+      try {
+        const res = await call('taskAdd', {
+          title: title,
+          staff: add.querySelector('#cstaff').value || null,
+          due: calSelected,
+        });
+        toast(res.message);
+        const keep = calSelected;
+        await openCalendar(calMonth);
+        calSelected = keep;
+        renderCalendar();
+      } catch (err) {
+        toast(err.message, true);
+      } finally { busy = false; }
+    });
+  }
+
+  calBtn.addEventListener('click', () => openCalendar());
+
+  /* ---------- 日次業務 ----------
+     内容は「店舗通常営業マニュアル（勤務オペレーション編）」に準拠。
+     チェック状態は 店舗 × 営業日 ごとにこの端末へ保存される。 */
+  const TODO_SECTIONS = [
+    { title: '\u2460 出勤時', items: [
+      { id: 'sign',     text: '店舗看板を出す／CLOSEDをOPENに変える' },
+      { id: 'light',    text: '店舗ライトを点灯しオープン状態にする' },
+      { id: 'power',    text: '各種電源を入れる' },
+      { id: 'toilet',   text: 'トイレ確認（便器・床・手洗い場）' },
+      { id: 'trash',    text: 'トイレ内ゴミ箱・フロア床の汚れ確認' },
+      { id: 'cash',     text: 'レジ金スタートの金額確認／入力' },
+      { id: 'water',    text: 'マドラーなどの水換え' },
+      { id: 'snsOpen',  text: 'Instagramにオープン告知（担当者名も記載）', store: '恵我之荘店' },
+    ]},
+    { title: '\u2461 勤務時', items: [
+      { id: 'duty',     text: '', duty: true },
+      { id: 'sns',      text: 'Instagram更新（1回以上）' },
+      { id: 'lo',       text: '開店20分前にラストオーダー（開店時間は臨機応変に）' },
+    ]},
+    { title: '\u2462 退勤時', items: [
+      { id: 'signIn',    text: '店舗看板をしまう／OPENをCLOSEDに変える' },
+      { id: 'settle',    text: 'タブレット伝票で日締めをする／勤務時間入力' },
+      { id: 'cashCheck', text: '「本日の売り上げ」とスタートレジ金の合計が実際の最終レジ金と合っているかを確認する' },
+      { id: 'wash',      text: '洗い物' },
+      { id: 'drink',     text: '各種ドリンクの補充' },
+      { id: 'clean',     text: 'トイレ内・フロア内の清掃' },
+      { id: 'powerOff',  text: '各種電源を切る' },
+      { id: 'fan',       text: '換気扇を1か所つけておく', store: '恵我之荘店' },
+    ]},
+  ];
+
+  // 曜日当番（0=日）。火曜は当番なし。
+  const DUTY = {
+    0: 'フロア全体の掃除機がけ',
+    1: 'トイレ掃除（便器・床・手洗い場）',
+    3: 'トイレ掃除（便器・床・手洗い場）',
+    4: 'フロア全体の掃除機がけ',
+    5: 'トイレ掃除（便器・床・手洗い場）',
+    6: '仕入れ確認（必須・報告まで行う）',
+  };
+
+  function dutyOf(dateStr) {
+    const p = String(dateStr || '').split('-').map(Number);
+    if (p.length !== 3 || p.some((n) => !Number.isFinite(n))) return null;
+    return DUTY[new Date(p[0], p[1] - 1, p[2]).getDay()] || null;
+  }
+
+  function todoItems() {
+    const duty = dutyOf(currentDay);
+    const out = [];
+    TODO_SECTIONS.forEach((sec) => {
+      const items = [];
+      sec.items.forEach((it) => {
+        if (it.store && it.store !== store) return;
+        if (it.duty) {
+          if (!duty) return;
+          items.push({ id: it.id, text: '曜日当番：' + duty });
+          return;
+        }
+        items.push({ id: it.id, text: it.text });
+      });
+      if (items.length) out.push({ title: sec.title, items: items });
+    });
+    return out;
+  }
+
+  function todoKey() { return 'lotus_tc_todo_' + store + '_' + currentDay; }
+
+  function todoState() {
+    try { return JSON.parse(localStorage.getItem(todoKey()) || '{}'); } catch (e) { return {}; }
+  }
+
+  function saveTodoState(st) {
+    try { localStorage.setItem(todoKey(), JSON.stringify(st)); } catch (e) { /* 保存できなくても操作は続行 */ }
+  }
+
+  function updateTodoBadge() {
+    if (!store || !currentDay) { todoBtn.textContent = '\u2705 日次業務'; return; }
+    const st = todoState();
+    let total = 0, done = 0;
+    todoItems().forEach((sec) => sec.items.forEach((it) => { total += 1; if (st[it.id]) done += 1; }));
+    todoBtn.textContent = '\u2705 日次業務 ' + done + '/' + total;
+    todoBtn.classList.toggle('primary', total > 0 && done === total);
+  }
+
+  function openTodo() {
+    const st = todoState();
+    sheet.classList.add('wide');
+    sheet.innerHTML =
+      '<h2>日次業務</h2>' +
+      '<div class="sub">' + store + '　営業日 ' + dayLabel(currentDay) + '</div>' +
+      '<div class="tlist" id="tlist"></div>' +
+      '<button class="big ghost" id="reset">チェックを全部外す</button>' +
+      '<button class="big ghost" id="close">閉じる</button>';
+
+    const list = sheet.querySelector('#tlist');
+    todoItems().forEach((sec) => {
+      const h = document.createElement('div');
+      h.className = 'tsec';
+      h.textContent = sec.title;
+      list.appendChild(h);
+
+      sec.items.forEach((it) => {
+        const row = document.createElement('button');
+        row.className = 'titem' + (st[it.id] ? ' on' : '');
+        row.innerHTML = '<span class="tbox"></span><span class="ttext"></span>';
+        row.querySelector('.ttext').textContent = it.text;
+        row.addEventListener('click', () => {
+          const cur = todoState();
+          if (cur[it.id]) delete cur[it.id]; else cur[it.id] = true;
+          saveTodoState(cur);
+          row.classList.toggle('on', !!cur[it.id]);
+          updateTodoBadge();
+        });
+        list.appendChild(row);
+      });
+    });
+
+    sheet.querySelector('#reset').addEventListener('click', () => {
+      saveTodoState({});
+      updateTodoBadge();
+      openTodo();
+    });
+    sheet.querySelector('#close').addEventListener('click', () => {
+      sheet.classList.remove('wide');
+      closeSheet();
+    });
+    mask.classList.add('show');
+  }
+
   /* ---------- マニュアル・ルール ---------- */
   // 一覧はNotionの「マニュアル」から毎回取得するので、
   // 追加・削除・並べ替えはNotion側だけで完結する。
@@ -450,6 +744,7 @@
     });
   }
 
+  todoBtn.addEventListener('click', openTodo);
   manualBtn.addEventListener('click', openManuals);
   closeBtn.addEventListener('click', openClose);
   cashBtn.addEventListener('click', openCash);
