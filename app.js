@@ -572,7 +572,7 @@
     { title: '\u2460 出勤時', items: [
       { id: 'sign',     text: '店舗看板を出す／CLOSEDをOPENに変える' },
       { id: 'power',    text: '各種電源を入れる' },
-      { id: 'cash',     text: 'レジ金スタートの金額確認／入力' },
+      { id: 'cash',     text: 'スタートレジ金の金額確認／入力' },
       { id: 'water',    text: 'マドラーなどの水換え' },
       { id: 'snsOpen',  text: 'Instagramにオープン告知（担当者名も記載）', store: '恵我之荘店' },
       { id: 'todoChk',  text: 'ToDoの確認' },
