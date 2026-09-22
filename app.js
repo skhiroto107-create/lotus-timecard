@@ -644,7 +644,6 @@
       { id: 'power',    text: '各種電源を入れる' },
       { id: 'cash',     text: 'スタートレジ金の金額確認／入力' },
       { id: 'water',    text: 'マドラーなどの水換え' },
-      { id: 'snsOpen',  text: 'Instagramにオープン告知（担当者名も記載）', store: '恵我之荘店' },
       { id: 'todoChk',  text: 'ToDoの確認' },
     ]},
     { title: '\u2461 勤務時', items: [
@@ -659,7 +658,6 @@
       { id: 'drink',     text: '各種ドリンクの補充' },
       { id: 'clean',     text: 'トイレ内・フロア内の清掃' },
       { id: 'powerOff',  text: '各種電源を切る' },
-      { id: 'fan',       text: '換気扇を1か所つけておく', store: '恵我之荘店' },
     ]},
   ];
 
