@@ -577,9 +577,24 @@
         '<input id="ctitle" type="text" placeholder="ToDoを追加">' +
         '<button class="cbtn add" id="cadd">追加</button>' +
       '</div>' +
+      '<div class="cchiplabel">対象</div>' +
+      '<div class="cchips" id="cscope">' +
+        '<button class="cchip on" data-v="store"></button>' +
+        '<button class="cchip" data-v="both">両店共通</button>' +
+      '</div>' +
       '<div class="cchiplabel">担当者（複数選べます／選ばなければ担当なし）</div>' +
       '<div class="cchips" id="cchips"></div>';
     box.appendChild(add);
+
+    // この店舗だけ / 両店共通 の切り替え
+    let scope = 'store';
+    add.querySelector('#cscope .cchip[data-v="store"]').textContent = store + 'だけ';
+    add.querySelectorAll('#cscope .cchip').forEach((b) => {
+      b.addEventListener('click', () => {
+        scope = b.dataset.v;
+        add.querySelectorAll('#cscope .cchip').forEach((x) => x.classList.toggle('on', x === b));
+      });
+    });
 
     // 担当者は名前をタップして複数選べる
     const picked = new Set();
@@ -604,6 +619,7 @@
         const res = await call('taskAdd', {
           title: title,
           staff: STAFF.filter((n) => picked.has(n)),
+          shared: scope === 'both',
           due: calSelected,
         });
         toast(res.message);
