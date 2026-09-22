@@ -309,23 +309,55 @@
 
     sheet.querySelector('#close').addEventListener('click', closeSheet);
     const act = sheet.querySelector('#act');
-    if (act) act.addEventListener('click', () => runClose(!!info.closedBy));
+    if (act) act.addEventListener('click', () => confirmClose(info));
   }
 
-  async function runClose(force) {
-    if (busy) return;
-    busy = true;
-    const act = sheet.querySelector('#act');
+  // 反映前に必ず内容を確認してもらう
+  function confirmClose(info) {
     const rep = sheet.querySelector('#rep').value;
     const cashRaw = sheet.querySelector('#cash').value;
-    act.disabled = true;
-    act.textContent = '送信中…';
-    try {
-      const hours = {};
-      sheet.querySelectorAll('#hlist input').forEach((i) => {
-        if (i.value !== '') hours[i.dataset.staff] = Number(i.value);
-      });
+    const hours = {};
+    sheet.querySelectorAll('#hlist input').forEach((i) => {
+      if (i.value !== '') hours[i.dataset.staff] = Number(i.value);
+    });
 
+    const s = info.summary;
+    const names = Object.keys(hours);
+    const hoursText = names.length
+      ? names.map((k) => k + ' ' + hours[k] + 'h').join('　')
+      : '変更なし';
+
+    sheet.innerHTML =
+      '<h2>この内容で反映しますか？</h2>' +
+      '<div class="sub">' + store + '　営業日 ' + dayLabel(info.businessDate) + '</div>' +
+      (info.closedBy
+        ? '<div class="warn">すでに ' + info.closedBy + ' さんの行に反映済みです。実行すると上書きします。</div>'
+        : '') +
+      '<table class="sum">' +
+        '<tr><td>売上をまとめる</td><td>' + rep + '</td></tr>' +
+        '<tr><td>通常売上</td><td>' + yen(s.通常売上) + '</td></tr>' +
+        '<tr><td>開店時間以降売上</td><td>' + yen(s.開店時間以降売上) + '</td></tr>' +
+        '<tr><td>シャンパン金額</td><td>' + yen(s.シャンパン金額) + '</td></tr>' +
+        '<tr><td>スタッフ割引額</td><td>' + yen(s.スタッフ割引額) + '</td></tr>' +
+        '<tr><td>メダル枚数</td><td>' + s.メダル枚数 + '枚</td></tr>' +
+        '<tr><td>スタートレジ金</td><td>' + (cashRaw === '' ? '変更なし' : yen(Number(cashRaw))) + '</td></tr>' +
+        '<tr><td>稼働時間</td><td>' + hoursText + '</td></tr>' +
+      '</table>' +
+      '<button class="big in" id="go">実行する</button>' +
+      '<button class="big ghost" id="back">戻って修正</button>' +
+      '<button class="big ghost" id="close">キャンセル</button>';
+
+    sheet.querySelector('#go').addEventListener('click', () => doClose(rep, cashRaw, hours, !!info.closedBy));
+    sheet.querySelector('#back').addEventListener('click', () => openClose());
+    sheet.querySelector('#close').addEventListener('click', closeSheet);
+  }
+
+  async function doClose(rep, cashRaw, hours, force) {
+    if (busy) return;
+    busy = true;
+    const go = sheet.querySelector('#go');
+    if (go) { go.disabled = true; go.textContent = '送信中…'; }
+    try {
       const res = await call('close', {
         repStaff: rep,
         startCash: cashRaw === '' ? null : Number(cashRaw),
