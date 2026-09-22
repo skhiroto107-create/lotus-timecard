@@ -501,6 +501,12 @@
     renderDayList(byDay[calSelected] || null);
   }
 
+  // 担当者は複数。古いデータ（文字列1件）でも表示できるようにそろえる
+  function staffList(v) {
+    if (Array.isArray(v)) return v.filter(Boolean);
+    return v ? [v] : [];
+  }
+
   function renderDayList(list) {
     const box = sheet.querySelector('#clist');
     if (!box || !calSelected) return;
@@ -511,8 +517,9 @@
       const row = document.createElement('button');
       row.className = 'titem' + (t.status === '完了' ? ' on' : '');
       row.innerHTML = '<span class="tbox"></span><span class="ttext"></span>';
+      const who = staffList(t.staff);
       row.querySelector('.ttext').textContent =
-        t.title + (t.staff ? '　/　' + t.staff : '') + (t.store ? '' : '　（共通）');
+        t.title + (who.length ? '　/　' + who.join('・') : '') + (t.store ? '' : '　（共通）');
       row.addEventListener('click', async () => {
         if (busy) return;
         busy = true;
@@ -539,12 +546,27 @@
     const add = document.createElement('div');
     add.className = 'cadd';
     add.innerHTML =
-      '<input id="ctitle" type="text" placeholder="タスクを追加">' +
-      '<select id="cstaff"><option value="">担当なし</option>' +
-      STAFF.map((n) => '<option value="' + n + '">' + n + '</option>').join('') +
-      '</select>' +
-      '<button class="cbtn add" id="cadd">追加</button>';
+      '<div class="caddrow">' +
+        '<input id="ctitle" type="text" placeholder="タスクを追加">' +
+        '<button class="cbtn add" id="cadd">追加</button>' +
+      '</div>' +
+      '<div class="cchiplabel">担当者（複数選べます／選ばなければ担当なし）</div>' +
+      '<div class="cchips" id="cchips"></div>';
     box.appendChild(add);
+
+    // 担当者は名前をタップして複数選べる
+    const picked = new Set();
+    const chips = add.querySelector('#cchips');
+    STAFF.forEach((n) => {
+      const chip = document.createElement('button');
+      chip.className = 'cchip';
+      chip.textContent = n;
+      chip.addEventListener('click', () => {
+        if (picked.has(n)) picked.delete(n); else picked.add(n);
+        chip.classList.toggle('on', picked.has(n));
+      });
+      chips.appendChild(chip);
+    });
 
     add.querySelector('#cadd').addEventListener('click', async () => {
       if (busy) return;
@@ -554,7 +576,7 @@
       try {
         const res = await call('taskAdd', {
           title: title,
-          staff: add.querySelector('#cstaff').value || null,
+          staff: STAFF.filter((n) => picked.has(n)),
           due: calSelected,
         });
         toast(res.message);
