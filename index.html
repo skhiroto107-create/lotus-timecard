@@ -112,6 +112,13 @@
   }
   .cdot.done{background:var(--in)}
   .clist{display:flex; flex-direction:column; gap:8px; margin-bottom:16px}
+  .crow{display:flex; gap:8px; align-items:stretch}
+  .crow .titem{flex:1; min-width:0}
+  .cdel{
+    flex:none; width:46px; border-radius:13px; border:1px solid var(--line);
+    background:var(--panel2); color:var(--dim); font:inherit; font-size:20px; cursor:pointer;
+  }
+  .cdel:active{opacity:.7}
   .cempty{color:var(--dim); font-size:14px; text-align:left; padding:6px 2px}
   .cadd{display:flex; flex-direction:column; gap:9px; margin-top:6px}
   .caddrow{display:flex; gap:8px}
