@@ -514,6 +514,9 @@
     box.innerHTML = '<div class="tsec">' + dayLabel(calSelected) + '</div>';
 
     (list || []).forEach((t) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'crow';
+
       const row = document.createElement('button');
       row.className = 'titem' + (t.status === '完了' ? ' on' : '');
       row.innerHTML = '<span class="tbox"></span><span class="ttext"></span>';
@@ -533,13 +536,37 @@
           toast(err.message, true);
         } finally { busy = false; }
       });
-      box.appendChild(row);
+      wrap.appendChild(row);
+
+      // 削除（Notionのゴミ箱へ移動するので、消しすぎてもNotionから戻せる）
+      const del = document.createElement('button');
+      del.className = 'cdel';
+      del.textContent = '×';
+      del.title = '削除';
+      del.addEventListener('click', async () => {
+        if (busy) return;
+        if (!window.confirm('「' + t.title + '」を削除しますか？\n（Notionのゴミ箱に入るので戻せます）')) return;
+        busy = true;
+        try {
+          const res = await call('taskDelete', { pageId: t.id });
+          toast(res.message);
+          const keep = calSelected;
+          await openCalendar(calMonth);
+          calSelected = keep;
+          renderCalendar();
+        } catch (err) {
+          toast(err.message, true);
+        } finally { busy = false; }
+      });
+      wrap.appendChild(del);
+
+      box.appendChild(wrap);
     });
 
     if (!list || !list.length) {
       const empty = document.createElement('div');
       empty.className = 'cempty';
-      empty.textContent = 'この日のタスクはありません';
+      empty.textContent = 'この日のToDoはありません';
       box.appendChild(empty);
     }
 
@@ -547,7 +574,7 @@
     add.className = 'cadd';
     add.innerHTML =
       '<div class="caddrow">' +
-        '<input id="ctitle" type="text" placeholder="タスクを追加">' +
+        '<input id="ctitle" type="text" placeholder="ToDoを追加">' +
         '<button class="cbtn add" id="cadd">追加</button>' +
       '</div>' +
       '<div class="cchiplabel">担当者（複数選べます／選ばなければ担当なし）</div>' +
@@ -571,7 +598,7 @@
     add.querySelector('#cadd').addEventListener('click', async () => {
       if (busy) return;
       const title = add.querySelector('#ctitle').value.trim();
-      if (!title) { toast('タスク名を入力してください', true); return; }
+      if (!title) { toast('ToDo名を入力してください', true); return; }
       busy = true;
       try {
         const res = await call('taskAdd', {
