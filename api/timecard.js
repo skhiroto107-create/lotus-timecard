@@ -373,7 +373,7 @@ async function actTasks(store, month) {
 
 async function actTaskAdd(store, title, staff, due) {
   const name = String(title || '').trim();
-  if (!name) throw new Error('タスク名を入力してください');
+  if (!name) throw new Error('ToDo名を入力してください');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(due || ''))) throw new Error('期日が正しくありません');
 
   // 担当者は複数選択。配列でも文字列1件でも受け取れるようにする
@@ -397,8 +397,15 @@ async function actTaskAdd(store, title, staff, due) {
   return { message: '「' + name + '」を追加しました' };
 }
 
+// ToDoを削除する。完全削除ではなくNotionのゴミ箱へ移すので、Notion側で戻せる。
+async function actTaskDelete(pageId) {
+  if (!pageId) throw new Error('ToDoが指定されていません');
+  await notion('/pages/' + pageId, 'PATCH', { in_trash: true });
+  return { message: 'ToDoを削除しました（Notionのゴミ箱にあります）' };
+}
+
 async function actTaskStatus(pageId, status) {
-  if (!pageId) throw new Error('タスクが指定されていません');
+  if (!pageId) throw new Error('ToDoが指定されていません');
   const allowed = ['未着手', '進行中', '完了'];
   if (allowed.indexOf(status) < 0) throw new Error('ステータスが正しくありません');
   const props = {};
@@ -628,6 +635,7 @@ export default async function handler(req, res) {
       case 'tasks':        data = await actTasks(store, month); break;
       case 'taskAdd':      data = await actTaskAdd(store, title, staff, due); break;
       case 'taskStatus':   data = await actTaskStatus(pageId, status); break;
+      case 'taskDelete':   data = await actTaskDelete(pageId); break;
       default: throw new Error('不明な操作: ' + action);
     }
     return res.status(200).json({ ok: true, ...data });
