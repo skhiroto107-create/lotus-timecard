@@ -64,6 +64,65 @@
   .tool.primary{background:var(--accent); border-color:var(--accent); color:#fff}
   .tool.manual{margin-left:18px; align-self:center}
 
+  .tlist{display:flex; flex-direction:column; gap:8px; margin-bottom:16px}
+  .tsec{text-align:left; font-size:14px; color:var(--dim); font-weight:700; margin:12px 0 2px}
+  .titem{
+    display:flex; align-items:flex-start; gap:12px; width:100%;
+    background:var(--panel2); border:1px solid var(--line); border-radius:13px;
+    padding:14px 15px; font:inherit; font-size:16px; color:var(--txt);
+    text-align:left; cursor:pointer; line-height:1.5;
+  }
+  .titem:active{opacity:.75}
+  .tbox{
+    width:24px; height:24px; flex:none; border-radius:7px;
+    border:2px solid var(--dim); margin-top:1px;
+  }
+  .titem.on{border-color:var(--in); background:linear-gradient(180deg,rgba(34,197,94,.13),var(--panel2))}
+  .titem.on .tbox{background:var(--in); border-color:var(--in); position:relative}
+  .titem.on .tbox::after{
+    content:''; position:absolute; left:7px; top:2px; width:6px; height:12px;
+    border:solid #fff; border-width:0 3px 3px 0; transform:rotate(45deg);
+  }
+  .titem.on .ttext{color:var(--dim); text-decoration:line-through}
+
+  .cnav{display:flex; align-items:center; justify-content:center; gap:20px; margin-bottom:12px}
+  .cmonth{font-size:19px; font-weight:700; min-width:130px}
+  .cbtn{
+    background:var(--panel2); border:1px solid var(--line); color:var(--txt);
+    font:inherit; font-size:20px; width:46px; height:46px; border-radius:12px; cursor:pointer;
+  }
+  .cbtn.add{width:auto; padding:0 18px; font-size:16px; font-weight:600; background:var(--accent); border-color:var(--accent); color:#fff}
+  .cbtn:active{opacity:.75}
+  .cweek{display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:5px}
+  .cweek span{font-size:12px; color:var(--dim); text-align:center}
+  .cgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:14px}
+  .cday{
+    position:relative; aspect-ratio:1; background:var(--panel2); border:1px solid var(--line);
+    border-radius:10px; color:var(--txt); font:inherit; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  }
+  .cday.pad{background:none; border:0; cursor:default}
+  .cday:active{opacity:.75}
+  .cnum{font-size:15px}
+  .cday.today{border-color:var(--accent)}
+  .cday.sel{background:var(--accent); border-color:var(--accent); color:#fff}
+  .cdot{
+    background:var(--out); color:#fff; font-size:11px; font-weight:700;
+    min-width:18px; height:18px; border-radius:9px; line-height:18px; padding:0 4px;
+  }
+  .cdot.done{background:var(--in)}
+  .clist{display:flex; flex-direction:column; gap:8px; margin-bottom:16px}
+  .cempty{color:var(--dim); font-size:14px; text-align:left; padding:6px 2px}
+  .cadd{display:flex; gap:8px; margin-top:6px}
+  .cadd input{
+    flex:1; min-width:0; padding:12px; border-radius:11px; border:1px solid var(--line);
+    background:var(--bg); color:var(--txt); font:inherit; font-size:16px;
+  }
+  .cadd select{
+    width:120px; padding:12px 8px; border-radius:11px; border:1px solid var(--line);
+    background:var(--bg); color:var(--txt); font:inherit; font-size:15px;
+  }
+
   .mlist{display:flex; flex-direction:column; gap:9px; margin-bottom:14px}
   .mitem{
     background:var(--panel2); border:1px solid var(--line); border-radius:13px;
@@ -186,7 +245,9 @@
       <div class="clock" id="clock">--:--:--</div>
       <div class="today" id="today">読み込み中…</div>
     </div>
-    <button class="tool manual" id="manualBtn">📖 マニュアル・ルール</button>
+    <button class="tool manual" id="todoBtn">✅ 日次業務</button>
+    <button class="tool" id="calBtn">🗓 ToDo</button>
+    <button class="tool" id="manualBtn">📖 マニュアル・ルール</button>
     <div class="spacer"></div>
     <button class="store-badge" id="storeBadge"><span id="storeName">－</span><small>変更</small></button>
     <button class="tool" id="cashBtn">スタートレジ金</button>
