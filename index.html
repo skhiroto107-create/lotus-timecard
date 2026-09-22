@@ -64,6 +64,18 @@
   .tool.primary{background:var(--accent); border-color:var(--accent); color:#fff}
   .tool.manual{margin-left:18px; align-self:center}
 
+  /* マウスを乗せたときに出る説明（タブレットでは出ません） */
+  .tip{position:relative}
+  .tip::after{
+    content:attr(data-tip);
+    position:absolute; top:calc(100% + 8px); right:0; white-space:nowrap;
+    background:var(--panel2); color:var(--txt); border:1px solid var(--line);
+    border-radius:10px; padding:9px 13px; font-size:14px; font-weight:600;
+    box-shadow:0 6px 18px rgba(0,0,0,.45);
+    opacity:0; pointer-events:none; transition:opacity .12s; z-index:30;
+  }
+  .tip:hover::after{opacity:1}
+
   .tlist{display:flex; flex-direction:column; gap:8px; margin-bottom:16px}
   .tsec{text-align:left; font-size:14px; color:var(--dim); font-weight:700; margin:12px 0 2px}
   .titem{
@@ -262,7 +274,7 @@
     <div class="spacer"></div>
     <button class="store-badge" id="storeBadge"><span id="storeName">－</span><small>変更</small></button>
     <button class="tool" id="cashBtn">スタートレジ金</button>
-    <button class="tool primary" id="closeBtn">日締め</button>
+    <button class="tool primary tip" id="closeBtn" data-tip="全ての会計完了後に押してください">日締め</button>
   </header>
 
   <main>
