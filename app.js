@@ -357,6 +357,7 @@
     busy = true;
     const go = sheet.querySelector('#go');
     if (go) { go.disabled = true; go.textContent = '送信中…'; }
+    const dayAtClose = currentDay;
     try {
       const res = await call('close', {
         repStaff: rep,
@@ -366,7 +367,11 @@
       });
       closeSheet();
       toast(res.message);
+      // 日締め完了 = その営業日の業務は終わり。日次業務を次の営業日ぶんに切り替える
+      clearTodoFor(store, dayAtClose);
       await refresh();
+      clearTodoFor(store, currentDay);
+      updateTodoBadge();
     } catch (err) {
       closeSheet();
       toast(err.message, true);
@@ -605,7 +610,13 @@
     return out;
   }
 
-  function todoKey() { return 'lotus_tc_todo_' + store + '_' + currentDay; }
+  function todoKeyFor(st, day) { return 'lotus_tc_todo_' + st + '_' + day; }
+  function todoKey() { return todoKeyFor(store, currentDay); }
+
+  // 日締めをしたら、その営業日のチェックは全部外して次の営業に切り替える
+  function clearTodoFor(st, day) {
+    try { localStorage.removeItem(todoKeyFor(st, day)); } catch (e) { /* 消せなくても続行 */ }
+  }
 
   function todoState() {
     try { return JSON.parse(localStorage.getItem(todoKey()) || '{}'); } catch (e) { return {}; }
