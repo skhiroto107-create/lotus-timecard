@@ -320,7 +320,7 @@
           '<input id="cash" type="number" inputmode="numeric" placeholder="未入力" value="' +
           (info.startCash != null ? info.startCash : '') + '"></div>' +
           '<div class="field"><label>稼働時間（1時間単位）</label><div class="hlist" id="hlist"></div></div>' +
-          '<button class="big in" id="act">Notionに反映</button>'
+          '<button class="big in" id="act">完了</button>'
         : '') +
       '<button class="big ghost" id="close">' + (info.staff.length ? 'キャンセル' : '閉じる') + '</button>';
 
