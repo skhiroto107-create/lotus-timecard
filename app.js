@@ -26,6 +26,7 @@
   let records = {};
   let busy = false;
   let currentDay = '';
+  let startCash = null;         // その営業日に入力されたスタートレジ金
 
   /* ---------- タップ音（デジタル伝票アプリと同一の合成音） ----------
      音声ファイルは使わず Web Audio API でその場生成する。
@@ -105,7 +106,7 @@
       d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + '(' + WEEKDAY[d.getDay()] + ')';
     clockEl.textContent = p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
   }
-  setInterval(tick, 1000);
+  setInterval(() => { tick(); if (store) updateCashBadge(); }, 1000);
   tick();
 
   /* ---------- サーバー呼び出し ---------- */
@@ -262,13 +263,17 @@
       (res.records || []).forEach((r) => { records[r.staff] = r; });
       currentDay = res.businessDate;
       todayEl.textContent = '営業日 ' + dayLabel(currentDay);
+      const withCash = (res.records || []).find((r) => r.startCash != null);
+      startCash = withCash ? withCash.startCash : null;
     } catch (err) {
       todayEl.textContent = '接続エラー';
       bannerEl.innerHTML = '<div class="banner">⚠ ' + err.message + '</div>';
       records = {};
+      startCash = null;
     }
     renderGrid();
     updateTodoBadge();
+    updateCashBadge();
   }
 
   /* ---------- 日締め ---------- */
@@ -413,12 +418,28 @@
   }
 
   /* ---------- レジ金 ---------- */
+
+  // 入力したスタートレジ金は翌日12:00まで表示に残す
+  function cashExpired(day) {
+    const p = String(day || '').split('-').map(Number);
+    if (p.length !== 3 || p.some((n) => !Number.isFinite(n))) return true;
+    const limit = new Date(p[0], p[1] - 1, p[2] + 1, 12, 0, 0, 0);
+    return Date.now() >= limit.getTime();
+  }
+
+  function updateCashBadge() {
+    const show = startCash != null && !cashExpired(currentDay);
+    cashBtn.textContent = show ? 'スタートレジ金 ' + yen(startCash) : 'スタートレジ金';
+    cashBtn.classList.toggle('primary', show);
+  }
+
   function openCash() {
     sheet.innerHTML =
       '<h2>スタートレジ金</h2>' +
       '<div class="sub">' + store + '　営業日 ' + dayLabel(currentDay) + '</div>' +
       '<div class="field"><label>スタートレジ金</label>' +
-      '<input id="cash" type="number" inputmode="numeric" placeholder="例 25000"></div>' +
+      '<input id="cash" type="number" inputmode="numeric" placeholder="例 25000" value="' +
+      (startCash != null ? startCash : '') + '"></div>' +
       '<button class="big in" id="act">保存</button>' +
       '<button class="big ghost" id="close">キャンセル</button>';
 
