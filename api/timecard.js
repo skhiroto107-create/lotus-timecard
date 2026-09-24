@@ -420,6 +420,36 @@ async function actTaskStatus(pageId, status) {
 
 /* ---------------- 各アクション ---------------- */
 
+// 打刻の押し間違いを元に戻す。
+// mode='out' … 退勤だけ取り消して勤務中に戻す
+// mode='in'  … 打刻ごと取り消して未出勤に戻す（行はNotionのゴミ箱へ）
+async function actUndo(staff, store, mode) {
+  const day = businessDate();
+  const existing = (await queryRows(store, staff, day))[0];
+  if (!existing) throw new Error(staff + ' さんの本日の打刻記録がありません');
+  const rec = toRecord(existing);
+
+  if (mode === 'out') {
+    if (!rec.outIso) throw new Error(staff + ' さんはまだ退勤していません');
+    await updatePage(existing.id, {
+      [P.out]:   { date: null },
+      [P.hours]: { number: null },
+    });
+    return { message: staff + ' さんの退勤を取り消しました（勤務中に戻しました）' };
+  }
+
+  if (!rec.inIso) throw new Error(staff + ' さんはまだ出勤していません');
+  // 売上・レジ金が入っている行は日締め済みの可能性があるので消さない
+  const props = existing.properties || {};
+  const keys = [P.normal, P.after, P.champagne, P.discount, P.medal, P.startCash];
+  const hasData = keys.some(function (k) { return numOf(props, k) !== null; });
+  if (hasData) {
+    throw new Error('この行には売上やレジ金が入っているため取り消せません。Notionから修正してください');
+  }
+  await notion('/pages/' + existing.id, 'PATCH', { in_trash: true });
+  return { message: staff + ' さんの打刻を取り消しました（未出勤に戻しました）' };
+}
+
 async function actStatus(store) {
   const day = businessDate();
   const rows = await queryRows(store, null, day);
@@ -624,7 +654,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'POST してください' });
   }
 
-  const { action, store, staff, repStaff, startCash, force, amount, pageId, hours, month, title, due, status, shared } = req.body || {};
+  const { action, store, staff, repStaff, startCash, force, amount, pageId, hours, month, title, due, status, shared, mode } = req.body || {};
 
   try {
     if (action !== 'status' && action !== 'manuals' && action !== 'manual' && !STORES.includes(store)) {
@@ -636,6 +666,7 @@ export default async function handler(req, res) {
       case 'status':       data = await actStatus(store); break;
       case 'in':           data = await actPunchIn(staff, store); break;
       case 'out':          data = await actPunchOut(staff, store); break;
+      case 'undo':         data = await actUndo(staff, store, mode); break;
       case 'closeInfo':    data = await actCloseInfo(store); break;
       case 'close':        data = await closeDay(store, businessDate(), repStaff, startCash, force, hours); break;
       case 'setStartCash': data = await actSetStartCash(store, amount); break;
