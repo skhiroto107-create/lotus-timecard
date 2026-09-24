@@ -182,15 +182,17 @@
     sheet.innerHTML =
       '<h2></h2><div class="sub"></div>' +
       (done
-        ? '<button class="big ghost" id="close">閉じる</button>'
+        ? '<button class="big ghost" id="undoOut">退勤を取り消す</button>' +
+          '<button class="big ghost" id="close">閉じる</button>'
         : '<button class="big ' + (working ? 'out' : 'in') + '" id="act"></button>' +
+          (working ? '<button class="big ghost" id="undoIn">出勤を取り消す</button>' : '') +
           '<button class="big ghost" id="close">キャンセル</button>');
 
     sheet.querySelector('h2').textContent = name;
     // 店舗の取り違えを防ぐため、どの操作でも必ず店舗名を確認画面に出す
     sheet.querySelector('.sub').textContent =
       store + '　営業日 ' + dayLabel(currentDay) + '\n' + (
-        done      ? '退勤済みです（' + r.in + ' 〜 ' + r.out + '）　修正はNotionから'
+        done      ? '退勤済みです（' + r.in + ' 〜 ' + r.out + '）'
         : working ? r.in + ' に出勤中です。退勤を記録します'
         : '出勤を記録します');
 
@@ -199,6 +201,23 @@
       act.textContent = working ? '退勤する' : '出勤する';
       act.addEventListener('click', () => punch(name, working ? 'out' : 'in'));
     }
+
+    // 押し間違いのやり直し
+    const undoOut = sheet.querySelector('#undoOut');
+    if (undoOut) {
+      undoOut.addEventListener('click', () => {
+        if (!window.confirm(name + ' さんの退勤（' + r.out + '）を取り消して、勤務中に戻しますか？')) return;
+        undo(name, 'out');
+      });
+    }
+    const undoIn = sheet.querySelector('#undoIn');
+    if (undoIn) {
+      undoIn.addEventListener('click', () => {
+        if (!window.confirm(name + ' さんの出勤（' + r.in + '）を取り消して、未出勤に戻しますか？')) return;
+        undo(name, 'in');
+      });
+    }
+
     sheet.querySelector('#close').addEventListener('click', closeSheet);
     mask.classList.add('show');
   }
@@ -212,6 +231,21 @@
       const res = await call(action, { staff: name });
       closeSheet();
       toast(res.message + '　' + res.time);
+      await refresh();
+    } catch (err) {
+      closeSheet();
+      toast(err.message, true);
+    } finally { busy = false; }
+  }
+
+  // 打刻の押し間違いを元に戻す（退勤→勤務中／出勤→未出勤）
+  async function undo(name, mode) {
+    if (busy) return;
+    busy = true;
+    try {
+      const res = await call('undo', { staff: name, mode: mode });
+      closeSheet();
+      toast(res.message);
       await refresh();
     } catch (err) {
       closeSheet();
