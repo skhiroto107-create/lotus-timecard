@@ -577,7 +577,7 @@
       row.innerHTML = '<span class="tbox"></span><span class="ttext"></span>';
       const who = staffList(t.staff);
       row.querySelector('.ttext').textContent =
-        t.title + (who.length ? '　/　' + who.join('・') : '') + (t.store ? '' : '　（共通）');
+        t.title + (who.length ? '　/　' + who.join('・') : '') + '　（' + (t.store || '共通') + '）';
       row.addEventListener('click', async () => {
         if (busy) return;
         busy = true;
@@ -632,7 +632,7 @@
         '<input id="ctitle" type="text" placeholder="ToDoを追加">' +
         '<button class="cbtn add" id="cadd">追加</button>' +
       '</div>' +
-      '<div class="cchiplabel">対象</div>' +
+      '<div class="cchiplabel">対象（どちらの店舗からも見られます）</div>' +
       '<div class="cchips" id="cscope">' +
         '<button class="cchip on" data-v="store"></button>' +
         '<button class="cchip" data-v="both">両店共通</button>' +
