@@ -366,8 +366,7 @@ async function actTasks(store, month) {
       store: pr[T.store] && pr[T.store].select ? pr[T.store].select.name : null,
     };
   }).filter(function (t) {
-    if (!t.due) return false;
-    return !t.store || t.store === store;   // 店舗未設定は共通タスクとして両店に出す
+    return !!t.due;   // ToDoはどちらの店舗からでも見られるよう、店舗で絞らない
   });
 
   tasks.sort(function (a, b) { return a.due < b.due ? -1 : a.due > b.due ? 1 : 0; });
