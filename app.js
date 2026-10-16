@@ -27,6 +27,7 @@
   let busy = false;
   let currentDay = '';
   let startCash = null;         // その営業日に入力されたスタートレジ金
+  let todoDueCount = 0;         // 期限が来ている未完了ToDoの数（ホーム画面のサイン用）
 
   /* ---------- タップ音（デジタル伝票アプリと同一の合成音） ----------
      音声ファイルは使わず Web Audio API でその場生成する。
@@ -274,6 +275,7 @@
     renderGrid();
     updateTodoBadge();
     updateCashBadge();
+    loadTodoSign();
   }
 
   /* ---------- 日締め ---------- */
@@ -464,6 +466,33 @@
     mask.classList.add('show');
   }
 
+  /* ---------- ホーム画面のToDoサイン ---------- */
+
+  // 期限が今日までの未完了ToDoがあれば、ヘッダーのボタンに件数を出す
+  function updateCalBadge() {
+    calBtn.textContent = todoDueCount > 0 ? '\u{1F5D3} ToDo ' + todoDueCount : '\u{1F5D3} ToDo';
+    calBtn.classList.toggle('alert', todoDueCount > 0);
+  }
+
+  async function loadTodoSign() {
+    if (!currentDay) { todoDueCount = 0; updateCalBadge(); return; }
+    const thisMonth = currentDay.slice(0, 7);
+    try {
+      let n = 0;
+      // 前月分も見る（期限切れのまま残っているToDoを拾うため）
+      for (const m of [shiftMonth(thisMonth, -1), thisMonth]) {
+        const res = await call('tasks', { month: m });
+        (res.tasks || []).forEach((t) => {
+          if (t.status !== '完了' && t.due && t.due <= currentDay) n += 1;
+        });
+      }
+      todoDueCount = n;
+    } catch (err) {
+      todoDueCount = 0;
+    }
+    updateCalBadge();
+  }
+
   /* ---------- ToDoカレンダー ----------
      データはNotionの「タスク」データソース。店舗未設定のタスクは両店に出る。 */
   let calMonth = null;
@@ -587,6 +616,7 @@
           t.status = next;
           row.classList.toggle('on', next === '完了');
           renderCalendar();
+          loadTodoSign();
         } catch (err) {
           toast(err.message, true);
         } finally { busy = false; }
@@ -609,6 +639,7 @@
           await openCalendar(calMonth);
           calSelected = keep;
           renderCalendar();
+          loadTodoSign();
         } catch (err) {
           toast(err.message, true);
         } finally { busy = false; }
@@ -683,6 +714,7 @@
         await openCalendar(calMonth);
         calSelected = keep;
         renderCalendar();
+        loadTodoSign();
       } catch (err) {
         toast(err.message, true);
       } finally { busy = false; }
