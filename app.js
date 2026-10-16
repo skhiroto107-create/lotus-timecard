@@ -634,16 +634,16 @@
       '</div>' +
       '<div class="cchiplabel">対象（どちらの店舗からも見られます）</div>' +
       '<div class="cchips" id="cscope">' +
-        '<button class="cchip on" data-v="store"></button>' +
+        STORES.map((s) => '<button class="cchip' + (s === store ? ' on' : '') +
+          '" data-v="' + s + '">' + s + '</button>').join('') +
         '<button class="cchip" data-v="both">両店共通</button>' +
       '</div>' +
       '<div class="cchiplabel">担当者（複数選べます／選ばなければ担当なし）</div>' +
       '<div class="cchips" id="cchips"></div>';
     box.appendChild(add);
 
-    // この店舗だけ / 両店共通 の切り替え
-    let scope = 'store';
-    add.querySelector('#cscope .cchip[data-v="store"]').textContent = store + 'だけ';
+    // 対象の店舗（この端末の店舗だけでなく、もう一方の店舗や両店共通も選べる）
+    let scope = store;
     add.querySelectorAll('#cscope .cchip').forEach((b) => {
       b.addEventListener('click', () => {
         scope = b.dataset.v;
@@ -675,6 +675,7 @@
           title: title,
           staff: STAFF.filter((n) => picked.has(n)),
           shared: scope === 'both',
+          taskStore: scope === 'both' ? null : scope,
           due: calSelected,
         });
         toast(res.message);
