@@ -373,7 +373,7 @@ async function actTasks(store, month) {
   return { month: m, tasks: tasks };
 }
 
-async function actTaskAdd(store, title, staff, due, shared) {
+async function actTaskAdd(store, title, staff, due, shared, taskStore) {
   const name = String(title || '').trim();
   if (!name) throw new Error('ToDo名を入力してください');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(due || ''))) throw new Error('期日が正しくありません');
@@ -388,8 +388,9 @@ async function actTaskAdd(store, title, staff, due, shared) {
   props[T.title]  = { title: [{ text: { content: name } }] };
   props[T.due]    = { date: { start: due } };
   props[T.status] = { status: { name: '未着手' } };
-  // 店舗を入れなければ「共通」になり、両方の店舗のカレンダーに出る
-  if (!shared) props[T.store] = { select: { name: store } };
+  // 店舗を入れなければ「共通」。端末の店舗に関係なく、どちらの店舗あてにも作れる
+  const target = STORES.indexOf(taskStore) >= 0 ? taskStore : store;
+  if (!shared) props[T.store] = { select: { name: target } };
   props[T.staff]  = { multi_select: uniq.map(function (n) { return { name: n }; }) };
 
   await notion('/pages', 'POST', {
@@ -397,7 +398,7 @@ async function actTaskAdd(store, title, staff, due, shared) {
     properties: props,
   });
 
-  return { message: '「' + name + '」を追加しました' + (shared ? '（両店共通）' : '') };
+  return { message: '「' + name + '」を追加しました（' + (shared ? '両店共通' : target) + '）' };
 }
 
 // ToDoを削除する。完全削除ではなくNotionのゴミ箱へ移すので、Notion側で戻せる。
@@ -653,7 +654,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'POST してください' });
   }
 
-  const { action, store, staff, repStaff, startCash, force, amount, pageId, hours, month, title, due, status, shared, mode } = req.body || {};
+  const { action, store, staff, repStaff, startCash, force, amount, pageId, hours, month, title, due, status, shared, mode, taskStore } = req.body || {};
 
   try {
     if (action !== 'status' && action !== 'manuals' && action !== 'manual' && !STORES.includes(store)) {
@@ -672,7 +673,7 @@ export default async function handler(req, res) {
       case 'manuals':      data = await actManuals(); break;
       case 'manual':       data = await actManual(pageId); break;
       case 'tasks':        data = await actTasks(store, month); break;
-      case 'taskAdd':      data = await actTaskAdd(store, title, staff, due, shared); break;
+      case 'taskAdd':      data = await actTaskAdd(store, title, staff, due, shared, taskStore); break;
       case 'taskStatus':   data = await actTaskStatus(pageId, status); break;
       case 'taskDelete':   data = await actTaskDelete(pageId); break;
       default: throw new Error('不明な操作: ' + action);
